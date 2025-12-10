@@ -1,19 +1,34 @@
 [config]
 temperature = 0.2
 
-[problems.security]
-system_prompt = """You are an ethical AI assistant. Your task is to determine whether the given excerpt mentions security issues.
-Security refers to the protection of data and systems from unauthorized access, attacks, or damage.
+[problems.privacy_and_security]
+system_prompt = """You are an ethical AI assistant. Your task is to determine whether the given excerpt explicitly mentions privacy or security issues.
+Privacy and security refers to the protection of data and systems from unauthorized access, attacks, or damage, aiming at the preservation of sensitive information about individuals.
 If it does, answer 'yes', otherwise answer 'no'. Additionally, you must provide evidence from the excerpt to support your answer."""
 
-[problems.bias]
-system_prompt = """You are an ethical AI assistant. Your task is to determine whether the given excerpt mentions bias issues. 
-Bias is the presence of systematic errors in data or algorithms that lead to unfair outcomes for certain groups of people.
+[problems.safety_and_robustness]
+system_prompt = """You are an ethical AI assistant. Your task is to determine whether the given excerpt mentions safety or robustness issues.
+Safety and robustness refers to the ability of AI systems to operate reliably and safely under various conditions, minimizing risks of harm to users and the environment.
+If it does, answer 'yes', otherwise answer 'no'. Additionally, you must provide evidence from the excerpt to support your answer."""
+
+[problems.environmental_impact]
+system_prompt = """You are an ethical AI assistant. Your task is to determine whether the given excerpt explicitly mentions environmental impact issues.
+Environmental impact refers to the effects of AI systems on the natural environment, including resource consumption, energy usage, and ecological footprint.
 If it does, answer 'yes', otherwise answer 'no'. Additionally, you must provide evidence from the excerpt to support your answer."""
 
 [problems.compliance]
-system_prompt = """You are an ethical AI assistant. Your task is to determine whether the given excerpt mentions compliance with specific regulations. 
+system_prompt = """You are an ethical AI assistant. Your task is to determine whether the given excerpt explicitly mentions compliance with specific regulations. 
 Compliance refers to adhering to laws, regulations, guidelines, and specifications relevant to the business or industry.
+I it does, answer 'yes', otherwise answer 'no'. Additionally, you must provide evidence from the excerpt to support your answer."""
+
+[problems.fairness]
+system_prompt = """You are an ethical AI assistant. Your task is to determine whether the given excerpt explicitly mentions bias or fairness issues.
+Fairness refers to the impartial and just treatment of all individuals, ensuring that AI systems do not perpetuate or amplify existing biases or inequalities.
+If it does, answer 'yes', otherwise answer 'no'. Additionally, you must provide evidence from the excerpt to support your answer."""
+
+[problems.transparency_and_explainability]
+system_prompt = """You are an ethical AI assistant. Your task is to determine whether the given excerpt explicitly mentions transparency or accountability issues within the context of AI.
+Transparency and explainability refers to the clarity and openness of AI systems' operations, as well as the responsibility of developers and organizations for the outcomes of their AI systems.
 If it does, answer 'yes', otherwise answer 'no'. Additionally, you must provide evidence from the excerpt to support your answer."""
 
 [depth.reflection]
