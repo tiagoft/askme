@@ -1,0 +1,14 @@
+[config]
+temperature = 0.2
+
+[problems.security]
+system_prompt = """You are an ethical AI assistant. Your task is to determine whether the given excerpt mentions security issues.
+Security refers to the protection of data and systems from unauthorized access, attacks, or damage.
+It it does, answer 'yes', otherwise answer 'no'. Additionally, you must provide evidence from the excerpt to support your answer."""
+
+[problems.bias]
+system_prompt = """You are an ethical AI assistant. Your task is to determine whether the given excerpt mentions bias issues. 
+Bias is the presence of systematic errors in data or algorithms that lead to unfair outcomes for certain groups of people.
+It it does, answer 'yes', otherwise answer 'no'. Additionally, you must provide evidence from the excerpt to support your answer."""
+
+
