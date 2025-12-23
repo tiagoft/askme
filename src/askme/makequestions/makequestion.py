@@ -11,7 +11,7 @@ def make_a_question_about_collection(
     collection: list[str],
     model: openai_models.OpenAIChatModel,
     retries: int = 10,
-) -> HypothesisAboutCollection:
+) -> AgentRunResult[HypothesisAboutCollection]:
     """Generate a hypothesis about a collection of texts."""
     
     prompt = f"""Given the following collection of texts, generate a concise hypothesis
