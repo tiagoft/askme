@@ -14,13 +14,28 @@ def main():
         collection=text_collection,
         model=model,
     )
+    print("First attempt:")
     print("Generated Hypothesis:")
     print(question)
     print("Prompt tokens:", question.usage().input_tokens)
     print("Completion tokens:", question.usage().output_tokens)
     print("Total tokens:", question.usage().total_tokens)
 
+    first_question = question.output.hypothesis
+    print("\nFirst Hypothesis:", first_question)
     
-
+    question = makequestion.make_a_question_about_collection(
+        collection=text_collection,
+        model=model,
+        blacklist=[first_question],
+    )
+    
+    print("\nSecond attempt (with blacklist):")
+    print("Generated Hypothesis:")
+    print(question)
+    print("Prompt tokens:", question.usage().input_tokens)
+    print("Completion tokens:", question.usage().output_tokens)
+    print("Total tokens:", question.usage().total_tokens)
+    
 if __name__ == "__main__":
     main()

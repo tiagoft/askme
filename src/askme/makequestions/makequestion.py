@@ -11,6 +11,7 @@ def make_a_question_about_collection(
     collection: list[str],
     model: openai_models.OpenAIChatModel,
     retries: int = 10,
+    blacklist: list[str] = [],
 ) -> AgentRunResult[HypothesisAboutCollection]:
     """Generate a hypothesis about a collection of texts."""
     
@@ -19,6 +20,9 @@ def make_a_question_about_collection(
     Texts:
     {collection}
     """
+    
+    if blacklist is not None and len(blacklist) > 0:
+        prompt += f"\nDo not generate the following hypotheses: {blacklist}\n"
 
     agent = Agent(
         model,
