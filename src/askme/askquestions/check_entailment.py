@@ -1,4 +1,5 @@
 import torch
+import numpy as np 
 
 def check_entailment_nli_pipeline(
     pipeline,
@@ -42,7 +43,7 @@ def check_entailment_nli(
     premise: str,
     hypothesis: str,
     device='cuda:0',
-    label_names=['contradiction', 'entailment', 'neutral']
+    label_names=["entailment", "neutral", "contradiction"]
 ) -> tuple[bool, float, float, float]:
     tokens = tokenizer(premise,
                        hypothesis,
@@ -62,11 +63,8 @@ def check_entailment_nli(
     # We ignore "neutral" for this probability calculation
     # Following: https://arxiv.org/pdf/2303.08896
     # (self-check GPT)
-    P_entailment = torch.softmax(
-        logits[[
-            label_names.index("entailment"),
-            label_names.index("contradiction")
-        ]], -1)[0].item()
+    P_entailment = np.exp(named_logits["entailment"]) / (
+        np.exp(named_logits["entailment"]) + np.exp(named_logits["contradiction"])) 
     
     return (
         (named_logits["entailment"] > named_logits["contradiction"]),
