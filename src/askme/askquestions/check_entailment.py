@@ -1,5 +1,75 @@
 import torch
-import numpy as np 
+import numpy as np
+
+
+def chunk_text(text: str, chunk_size: int = 350, overlap: int = 50) -> list[str]:
+    """
+    Split text into chunks of specified word count with overlap.
+    
+    Args:
+        text: The text to split into chunks
+        chunk_size: Number of words per chunk (default: 350)
+        overlap: Number of words to overlap between chunks (default: 50)
+    
+    Returns:
+        List of text chunks
+    """
+    words = text.split()
+    if len(words) <= chunk_size:
+        return [text]
+    
+    chunks = []
+    start = 0
+    while start < len(words):
+        end = start + chunk_size
+        chunk = ' '.join(words[start:end])
+        chunks.append(chunk)
+        
+        # Move forward by (chunk_size - overlap) words
+        start += (chunk_size - overlap)
+        
+        # Break if we've covered all words
+        if end >= len(words):
+            break
+    
+    return chunks
+
+
+def pool_nli_scores(
+    check_fn,
+    premise: str,
+    hypothesis: str,
+    chunk_size: int = 350,
+    overlap: int = 50,
+    **kwargs
+) -> tuple[bool, float, float, float]:
+    """
+    Apply max-pooling over NLI scores from multiple chunks of a document.
+    
+    Args:
+        check_fn: The NLI checking function to use (e.g., check_entailment_nli)
+        premise: The document text (will be chunked if > chunk_size words)
+        hypothesis: The hypothesis to check against
+        chunk_size: Number of words per chunk (default: 350)
+        overlap: Number of words to overlap between chunks (default: 50)
+        **kwargs: Additional arguments to pass to check_fn
+    
+    Returns:
+        Tuple of (is_entailed, max_entailment_score, min_contradiction_score, max_P_entailment)
+        where max-pooling is applied to select the best chunk
+    """
+    chunks = chunk_text(premise, chunk_size, overlap)
+    
+    results = []
+    for chunk in chunks:
+        result = check_fn(premise=chunk, hypothesis=hypothesis, **kwargs)
+        results.append(result)
+    
+    # Max-pooling: select the chunk with highest entailment score
+    max_entailment_idx = max(range(len(results)), key=lambda i: results[i][1])
+    best_result = results[max_entailment_idx]
+    
+    return best_result 
 
 def check_entailment_nli_pipeline(
     pipeline,
