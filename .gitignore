@@ -10,3 +10,7 @@ wheels/
 .venv
 .env
 
+# Test artifacts
+tree_node.json
+tree_node_with_children.json
+
