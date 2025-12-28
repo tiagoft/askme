@@ -55,8 +55,8 @@ def pool_nli_scores(
         **kwargs: Additional arguments to pass to check_fn
     
     Returns:
-        Tuple of (is_entailed, max_entailment_score, min_contradiction_score, max_P_entailment)
-        where max-pooling is applied to select the best chunk
+        Tuple of (is_entailed, entailment_score, contradiction_score, P_entailment)
+        from the chunk with the highest entailment score (max-pooling)
     """
     chunks = chunk_text(premise, chunk_size, overlap)
     
