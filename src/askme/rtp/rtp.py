@@ -3,23 +3,12 @@
 # This module implements the Recursive Thematic Partitioning (RTP) algorithm
 # for document segmentation based on thematic coherence.
 
-from pydantic import BaseModel
-from typing import Optional
+from .tree_models import TreeNode, TokenUsage
 
 from askme.makequestions.makequestion import make_a_question_about_collection
 from askme.askquestions.check_entailment import check_entailment_nli
 
-class TreeNode(BaseModel):
-    documents: list[int]  # Indices of documents in this node
-    left: Optional['TreeNode'] = None  # Left child node
-    right: Optional['TreeNode'] = None  # Right child node
-    parent: Optional['TreeNode'] = None  # Parent node
-    question: Optional[str] = None  # Question used to split this node
 
-class TokenUsage(BaseModel):
-    total_tokens: int = 0
-    prompt_tokens: int = 0
-    completion_tokens: int = 0
 
 def _rtp_recursion(
     documents: list[str],
