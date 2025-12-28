@@ -3,6 +3,8 @@ Tests for RTP with entropy and information gain calculations.
 """
 
 import pytest
+import tempfile
+import os
 from askme.rtp.tree_models import TreeNode
 
 
@@ -66,16 +68,24 @@ def test_save_tree_node_with_metrics():
         entropy=0.918,
         information_gain=0.311
     )
-    file_path = "/tmp/tree_node_metrics.json"
-    json_string = node.model_dump_json()
+    # Use tempfile for cross-platform compatibility
+    fd, file_path = tempfile.mkstemp(suffix='.json', prefix='tree_node_metrics_')
+    os.close(fd)
     
-    with open(file_path, 'w') as f:
-        f.write(json_string)
-    
-    with open(file_path, 'r') as f:
-        json_data = f.read()
+    try:
+        json_string = node.model_dump_json()
         
-    loaded_node = TreeNode.model_validate_json(json_data)
-    assert loaded_node == node
-    assert abs(loaded_node.entropy - 0.918) < 1e-3
-    assert abs(loaded_node.information_gain - 0.311) < 1e-3
+        with open(file_path, 'w') as f:
+            f.write(json_string)
+        
+        with open(file_path, 'r') as f:
+            json_data = f.read()
+            
+        loaded_node = TreeNode.model_validate_json(json_data)
+        assert loaded_node == node
+        assert abs(loaded_node.entropy - 0.918) < 1e-3
+        assert abs(loaded_node.information_gain - 0.311) < 1e-3
+    finally:
+        # Clean up
+        if os.path.exists(file_path):
+            os.remove(file_path)

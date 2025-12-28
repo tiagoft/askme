@@ -5,9 +5,6 @@ This example shows a mock implementation without actual ML models to demonstrate
 the logging and metrics functionality.
 """
 
-import sys
-sys.path.insert(0, '/home/runner/work/askme/askme/src')
-
 from askme.rtp.tree_models import TreeNode
 from askme.rtp.metrics import calculate_entropy, calculate_information_gain
 

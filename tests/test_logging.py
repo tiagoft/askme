@@ -2,19 +2,17 @@
 Test logging functionality for information gain.
 """
 
-import sys
 import os
 import tempfile
-sys.path.insert(0, '/home/runner/work/askme/askme/src')
-
-import logging
 from askme.rtp.metrics import calculate_entropy, calculate_information_gain
+import logging
 
 
 def test_logging_to_file():
     """Test that we can log IG values to a file."""
     # Create a temporary log file
-    log_file = tempfile.mktemp(suffix='.log', prefix='rtp_ig_')
+    fd, log_file = tempfile.mkstemp(suffix='.log', prefix='rtp_ig_')
+    os.close(fd)  # Close the file descriptor as we'll use logging to write to it
     
     # Set up logging
     logger = logging.getLogger('askme.rtp.rtp')
