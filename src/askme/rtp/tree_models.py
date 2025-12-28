@@ -7,6 +7,8 @@ class TreeNode(BaseModel):
     right: Optional['TreeNode'] = None  # Right child node
     #parent: Optional['TreeNode'] = None  # Parent node
     question: Optional[str] = None  # Question used to split this node
+    entropy: Optional[float] = None  # Shannon entropy of this node
+    information_gain: Optional[float] = None  # Information gain from split
 
 
 TreeNode.model_rebuild()
