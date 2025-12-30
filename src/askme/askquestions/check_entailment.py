@@ -1,38 +1,8 @@
 import torch
 import numpy as np
+from ..utils import chunk_text
 
 
-def chunk_text(text: str, chunk_size: int = 350, overlap: int = 50) -> list[str]:
-    """
-    Split text into chunks of specified word count with overlap.
-    
-    Args:
-        text: The text to split into chunks
-        chunk_size: Number of words per chunk (default: 350)
-        overlap: Number of words to overlap between chunks (default: 50)
-    
-    Returns:
-        List of text chunks
-    """
-    words = text.split()
-    if len(words) <= chunk_size:
-        return [text]
-    
-    chunks = []
-    start = 0
-    while start < len(words):
-        end = start + chunk_size
-        chunk = ' '.join(words[start:end])
-        chunks.append(chunk)
-        
-        # Move forward by (chunk_size - overlap) words
-        start += (chunk_size - overlap)
-        
-        # Break if we've covered all words
-        if end >= len(words):
-            break
-    
-    return chunks
 
 
 def pool_nli_scores(
