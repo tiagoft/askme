@@ -26,3 +26,4 @@ def test_chunk_text_gpu():
     )(text)
     assert large_text_embedding is not None
     assert isinstance(large_text_embedding, np.ndarray)
+    

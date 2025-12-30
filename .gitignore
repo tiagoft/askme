@@ -10,3 +10,6 @@ wheels/
 .venv
 .env
 
+create_issues.sh
+tree_node_with_children.json
+tree_node.json
