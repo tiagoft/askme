@@ -1,5 +1,6 @@
 import faiss
 import numpy as np
+from typing import Optional
 from ..utils import TextEmbeddingWithChunker
 from collections.abc import Iterable
 
@@ -10,13 +11,15 @@ def make_faiss_index(
     dimension: int,
     use_gpu: bool = True,
     return_embeddings: bool = False,
+    gpu_resources: Optional[faiss.StandardGpuResources] = None,
 ) -> faiss.Index | tuple[faiss.Index, np.ndarray]:
     
     index = faiss.IndexFlatL2(dimension)
     
     if use_gpu:
-        res = faiss.StandardGpuResources()
-        index = faiss.index_cpu_to_gpu(res, 0, index)
+        if gpu_resources is None:
+            gpu_resources = faiss.StandardGpuResources()
+        index = faiss.index_cpu_to_gpu(gpu_resources, 0, index)
         
     embeddings = []
     
