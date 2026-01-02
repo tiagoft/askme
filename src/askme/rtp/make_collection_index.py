@@ -1,25 +1,35 @@
 import faiss
+import numpy as np
 from ..utils import TextEmbeddingWithChunker
 from collections.abc import Iterable
 
 
-def make_faiss_gpu_index(
+def make_faiss_index(
     text_collection: Iterable[str],
     embedding_model: TextEmbeddingWithChunker,
     dimension: int,
-) -> faiss.Index:
-    res = faiss.StandardGpuResources()
-
-    # Create a GPU index directly
-    gpu_index = faiss.IndexFlatL2(dimension)
-    gpu_index = faiss.index_cpu_to_gpu(res, 0, gpu_index)
-
+    use_gpu: bool = True,
+    return_embeddings: bool = False,
+) -> faiss.Index | tuple[faiss.Index, list[np.ndarray]]:
+    
+    index = faiss.IndexFlatL2(dimension)
+    
+    if use_gpu:
+        res = faiss.StandardGpuResources()
+        index = faiss.index_cpu_to_gpu(res, 0, index)
+        
+    embeddings = []
+    
     for text in text_collection:
         embedding = embedding_model(text)
         embedding = embedding.astype('float32').reshape(1, -1)
-        gpu_index.add(embedding)
+        if return_embeddings:
+            embeddings.append(embedding)
+        index.add(embedding)
     
-    return gpu_index
+    if return_embeddings:
+        return index, embeddings
+    return index
 
 
 
