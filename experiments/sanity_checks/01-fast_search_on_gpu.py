@@ -1,5 +1,5 @@
 from askme.utils import TextEmbeddingWithChunker
-from askme.rtp.make_collection_index import make_faiss_gpu_index
+from askme.rtp.make_collection_index import make_faiss_index
 import time 
 
 texts = [
@@ -23,7 +23,7 @@ print(f"Time to load model: {t1 - t0:.2f} seconds")
 dimension = 384  # Dimension for 'all-MiniLM-L6-v2'
 
 t0 = time.time()
-index = make_faiss_gpu_index(
+index = make_faiss_index(
     text_collection=texts,
     embedding_model=embedding_model,
     dimension=dimension,
