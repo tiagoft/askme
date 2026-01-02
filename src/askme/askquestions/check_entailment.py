@@ -47,12 +47,7 @@ def check_entailment_nli_pipeline(
     hypothesis: str,
     label_names=['contradiction', 'entailment', 'neutral']
 ) -> tuple[bool, float, float, float]:
-    output = pipeline(
-        {
-            'text': premise,
-            'hypothesis': hypothesis,
-        }
-    )[0]
+    output = pipeline(premise, hypothesis)
     logits = torch.tensor(output['scores'])
 
     named_logits = {
