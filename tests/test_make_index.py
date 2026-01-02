@@ -1,7 +1,10 @@
 import pytest 
+import faiss
+import numpy as np
 
 from askme.utils import TextEmbeddingWithChunker
 from askme.rtp.make_collection_index import make_faiss_gpu_index
+from askme.rtp.label_propagation import make_knn_graph, sparse_affinity, propagate_labels
 
 def test_make_faiss_gpu_index():
     texts = [
@@ -26,3 +29,4 @@ def test_make_faiss_gpu_index():
         dimension=dimension,
     )
     assert index.ntotal == len(texts)
+    

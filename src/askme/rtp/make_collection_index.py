@@ -11,7 +11,7 @@ def make_faiss_gpu_index(
     res = faiss.StandardGpuResources()
 
     # Create a GPU index directly
-    gpu_index = faiss.IndexFlatIP(dimension)
+    gpu_index = faiss.IndexFlatL2(dimension)
     gpu_index = faiss.index_cpu_to_gpu(res, 0, gpu_index)
 
     for text in text_collection:
@@ -20,3 +20,6 @@ def make_faiss_gpu_index(
         gpu_index.add(embedding)
     
     return gpu_index
+
+
+
