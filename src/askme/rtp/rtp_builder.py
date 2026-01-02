@@ -8,7 +8,7 @@ from typing import Optional
 from .make_collection_index import make_faiss_index
 from .label_propagation import propagate_labels, make_knn_graph, sparse_affinity
 from .tree_models import TreeNode
-from ..utils import TextEmbeddingWithChunker, kmeans_with_faiss, chunk_text
+from ..utils import TextEmbeddingWithChunker, kmeans_with_faiss
 from ..makequestions import api, makequestion
 from ..askquestions import check_entailment, models
 
