@@ -16,12 +16,17 @@ def make_nli_model(model_name = 'MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual
     tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=False)
     return model, tokenizer
 
-def make_nli_pipeline(model_name = 'MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7') -> tuple[any, any]:
+def make_nli_pipeline(model_name = 'MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7',
+                      use_cuda : bool = False) -> tuple[any, any]:
+    if use_cuda and torch.cuda.is_available():
+        device = 0
+    else:
+        device = -1
     pipe = pipeline(
         "text-classification",
         model=model_name,
         tokenizer=model_name,
-        #device=0 if torch.cuda.is_available() else -1,
+        device=device,
         return_all_scores=True,
     )
     return pipe

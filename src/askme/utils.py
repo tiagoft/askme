@@ -1,5 +1,6 @@
 from sentence_transformers import SentenceTransformer
 import numpy as np
+import faiss
 
 
 def chunk_text(
@@ -61,3 +62,26 @@ class TextEmbeddingWithChunker:
         chunk_embeddings = self.model.encode_document(chunks)
         embedding = self.pooling_fn(chunk_embeddings, axis=0)
         return embedding
+
+
+def kmeans_with_faiss(
+    faiss_index: faiss.Index,
+    X: np.ndarray,
+    n_clusters: int,
+) -> np.ndarray:
+
+    kmeans = faiss.Kmeans(
+        d=faiss_index.d,
+        k=n_clusters,
+        niter=20,
+        verbose=True,
+        gpu=False,
+    )
+    kmeans.train(X)
+
+    # medoid indexes
+    # Find medoids
+    distances_to_centroids, _ = kmeans.index.search(X, k=n_clusters)
+    #print(distances_to_centroids.shape, distances_to_centroids)
+    medoid_indices = np.argmin(distances_to_centroids, axis=0)
+    return medoid_indices

@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from pydantic_ai.providers.azure import AzureProvider
 
 
-def build_model(model_name : str = "gpt-4o-mini") -> Model:
+def make_model(model_name : str = "gpt-4o-mini") -> Model:
     load_dotenv()
     api_key = os.getenv("API_KEY")
     endpoint = os.getenv("ENDPOINT")

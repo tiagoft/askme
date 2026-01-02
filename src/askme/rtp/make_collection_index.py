@@ -10,7 +10,7 @@ def make_faiss_index(
     dimension: int,
     use_gpu: bool = True,
     return_embeddings: bool = False,
-) -> faiss.Index | tuple[faiss.Index, list[np.ndarray]]:
+) -> faiss.Index | tuple[faiss.Index, np.ndarray]:
     
     index = faiss.IndexFlatL2(dimension)
     
@@ -28,6 +28,7 @@ def make_faiss_index(
         index.add(embedding)
     
     if return_embeddings:
+        embeddings = np.vstack(embeddings)
         return index, embeddings
     return index
 

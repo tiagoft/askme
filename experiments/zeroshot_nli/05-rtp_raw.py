@@ -13,7 +13,7 @@ def main():
         "I like dogs",
         "The dog is in the yard.",
     ]
-    model = api.build_model()
+    model = api.make_model()
     nli_model, nli_tokenizer = models.make_nli_model(
         model_name='MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7')
     tree, usage = rtp.rtp(

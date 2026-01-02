@@ -9,7 +9,7 @@ def main():
         "I like dogs",
         "The dog is in the yard.",
     ]
-    model = api.build_model()
+    model = api.make_model()
     question = makequestion.make_a_question_about_collection(
         collection=text_collection,
         model=model,

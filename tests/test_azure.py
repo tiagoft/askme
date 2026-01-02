@@ -8,11 +8,11 @@ class HelloWorldResponse(BaseModel):
     message: str
 
 def test_build_model():
-    model = api.build_model()
+    model = api.make_model()
     assert model is not None
     
 def test_hello_world():
-    model = api.build_model()
+    model = api.make_model()
     prompt = "Respond with 'Hello, World!'"
     agent = Agent(
         model=model,
