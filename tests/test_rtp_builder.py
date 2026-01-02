@@ -71,7 +71,6 @@ def test_rtp_builder_gpu_resources_initialization():
     except Exception as e:
         # If GPU not available, at least verify the initialization logic is correct
         # The gpu_resources should still be set even if GPU operations fail
-        import pytest
         pytest.skip(f"GPU not available: {e}")
 
 
