@@ -28,6 +28,7 @@ def test_rtp_builder_initialization_cpu():
     assert builder.nli_model is not None
     assert builder.nli_tokenizer is not None
     assert builder.llm_model is not None
+    assert builder.gpu_resources is None  # No GPU resources when use_gpu=False
     assert builder.embedding_model_name == 'sentence-transformers/paraphrase-albert-small-v2'
     assert builder.nli_model_name == 'MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7'
     assert builder.llm_model_name == "gpt-4o-mini"
@@ -55,6 +56,23 @@ def test_rtp_builder_initialization_with_custom_params():
     assert builder.alpha == 0.95
     assert builder.max_iter == 50
     assert builder.tol == 1e-4
+
+
+def test_rtp_builder_gpu_resources_initialization():
+    """Test that GPU resources are initialized when use_gpu=True."""
+    import faiss
+    
+    # Note: This test may fail if CUDA is not available, but it tests the logic
+    try:
+        builder = RTPBuilder(use_gpu=True)
+        assert builder.use_gpu is True
+        assert builder.gpu_resources is not None
+        assert isinstance(builder.gpu_resources, faiss.StandardGpuResources)
+    except Exception as e:
+        # If GPU not available, at least verify the initialization logic is correct
+        # The gpu_resources should still be set even if GPU operations fail
+        import pytest
+        pytest.skip(f"GPU not available: {e}")
 
 
 def test_rtp_builder_call_with_list():

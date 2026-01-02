@@ -26,6 +26,7 @@ class RTPBuilder:
         nli_model: NLI model for checking entailment
         nli_tokenizer: Tokenizer for the NLI model
         llm_model: Language model for generating hypotheses
+        gpu_resources: FAISS GPU resources (None if use_gpu is False)
         use_gpu: Whether to use GPU acceleration
         embedding_model_name: Name of the embedding model
         nli_model_name: Name of the NLI model
@@ -88,6 +89,11 @@ class RTPBuilder:
         # Determine device
         device = 'cuda' if use_gpu else 'cpu'
         
+        # Initialize GPU resources for FAISS if needed
+        self.gpu_resources = None
+        if use_gpu:
+            self.gpu_resources = faiss.StandardGpuResources()
+        
         # Initialize embedding model
         self.embedding_model = TextEmbeddingWithChunker(
             model_name=embedding_model_name,
@@ -130,6 +136,7 @@ class RTPBuilder:
             dimension=dimension,
             use_gpu=self.use_gpu,
             return_embeddings=True,
+            gpu_resources=self.gpu_resources,
         )
         
         # Step 2: Get medoids via k-means for hypothesis generation
