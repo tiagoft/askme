@@ -104,6 +104,14 @@ def main():
     print(f"Total Time: {global_metrics.total_time_ms:.2f} ms")
     print(f"Total LLM Request Time: {global_metrics.llm_request_time:.2f} ms")
     print(f"Total NLI Time: {global_metrics.nli_time:.2f} ms")
+    print(f"Number of Nodes: {global_metrics.num_nodes}")
+    
+    # Compute averages for metrics that should be averaged
+    if global_metrics.num_nodes > 0:
+        avg_split_ratio = global_metrics.split_ratio / global_metrics.num_nodes
+        avg_nli_confidence = global_metrics.medoid_nli_confidence_avg / global_metrics.num_nodes
+        print(f"Average Split Ratio: {avg_split_ratio:.2f}")
+        print(f"Average Medoid NLI Confidence: {avg_nli_confidence:.2f}")
     
     # Step 6: Save the tree to JSON
     print("\n=== Saving tree to JSON ===")

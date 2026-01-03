@@ -139,6 +139,9 @@ def test_rtp_recursion_global_metrics_accumulation():
     assert global_metrics.nli_calls > 0
     assert global_metrics.total_time_ms > 0.0
     
+    # num_nodes should be at least 1 (the root)
+    assert global_metrics.num_nodes >= 1
+    
     # If tree has multiple levels, metrics should be greater than single node
     # (This is a qualitative test - exact values depend on the split)
 
@@ -252,6 +255,7 @@ def test_split_metrics_addition():
         llm_output_tokens=50,
         nli_calls=5,
         total_time_ms=500.0,
+        num_nodes=2,
     )
     
     metrics2 = SplitMetrics(
@@ -259,6 +263,7 @@ def test_split_metrics_addition():
         llm_output_tokens=75,
         nli_calls=8,
         total_time_ms=300.0,
+        num_nodes=3,
     )
     
     combined = metrics1 + metrics2
@@ -267,6 +272,7 @@ def test_split_metrics_addition():
     assert combined.llm_output_tokens == 125
     assert combined.nli_calls == 13
     assert combined.total_time_ms == 800.0
+    assert combined.num_nodes == 5
 
 
 def test_rtp_recursion_document_indices_consistency():

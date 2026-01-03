@@ -309,15 +309,11 @@ class RTPRecursion:
         # Convert to list and store original text collection
         text_collection = list(X)
         
-        # Initialize global metrics
-        global_metrics = SplitMetrics()
-        
-        # Build the tree recursively
-        root = self._recurse(
+        # Build the tree recursively and accumulate metrics
+        root, global_metrics = self._recurse(
             text_collection=text_collection,
             document_indices=list(range(len(text_collection))),
             depth=0,
-            global_metrics=global_metrics,
         )
         
         return root, global_metrics
@@ -327,8 +323,7 @@ class RTPRecursion:
         text_collection: list[str],
         document_indices: list[int],
         depth: int,
-        global_metrics: SplitMetrics,
-    ) -> TreeNode:
+    ) -> tuple[TreeNode, SplitMetrics]:
         """
         Recursively build the tree structure.
         
@@ -336,10 +331,9 @@ class RTPRecursion:
             text_collection: The full text collection (for reference)
             document_indices: Original indices of documents in this node
             depth: Current depth in the tree
-            global_metrics: Global metrics accumulator
             
         Returns:
-            TreeNode: The node for this subset of documents
+            tuple[TreeNode, SplitMetrics]: The node for this subset and accumulated metrics
         """
         # Get the subset of documents for this node
         node_documents = [text_collection[i] for i in document_indices]
@@ -351,23 +345,11 @@ class RTPRecursion:
         )
         
         if should_stop:
-            # Create leaf node
-            return TreeNode(documents=document_indices)
+            # Create leaf node with no metrics
+            return TreeNode(documents=document_indices), SplitMetrics(num_nodes=0)
         
         # Execute RTPBuilder for current node
         node_root, node_metrics = self.builder(node_documents, return_metrics=True)
-        
-        # Add node metrics to global metrics
-        global_metrics.llm_input_tokens += node_metrics.llm_input_tokens
-        global_metrics.llm_output_tokens += node_metrics.llm_output_tokens
-        global_metrics.nli_calls += node_metrics.nli_calls
-        global_metrics.faiss_search_time_ms += node_metrics.faiss_search_time_ms
-        global_metrics.label_propagation_time_ms += node_metrics.label_propagation_time_ms
-        global_metrics.total_time_ms += node_metrics.total_time_ms
-        global_metrics.split_ratio += node_metrics.split_ratio
-        global_metrics.medoid_nli_confidence_avg += node_metrics.medoid_nli_confidence_avg
-        global_metrics.llm_request_time += node_metrics.llm_request_time
-        global_metrics.nli_time += node_metrics.nli_time
         
         # Create tree node with original document indices
         result_node = TreeNode(
@@ -379,7 +361,7 @@ class RTPRecursion:
         # Check if split is valid
         if node_root.left is None or node_root.right is None:
             # No split occurred
-            return result_node
+            return result_node, node_metrics
         
         # Check split ratio criteria
         left_count = len(node_root.left.documents)
@@ -387,7 +369,7 @@ class RTPRecursion:
         total_count = left_count + right_count
         
         if total_count == 0:
-            return result_node
+            return result_node, node_metrics
         
         # Calculate split ratio (proportion in smaller child)
         smaller_count = min(left_count, right_count)
@@ -396,25 +378,26 @@ class RTPRecursion:
         # Check if split ratio is within acceptable range
         if split_ratio < self.min_split_ratio or split_ratio > self.max_split_ratio:
             # Split ratio not acceptable, don't recurse
-            return result_node
+            return result_node, node_metrics
         
         # Map local indices back to original indices
         left_original_indices = [document_indices[i] for i in node_root.left.documents]
         right_original_indices = [document_indices[i] for i in node_root.right.documents]
         
-        # Recurse into children
-        result_node.left = self._recurse(
+        # Recurse into children and accumulate metrics
+        result_node.left, left_metrics = self._recurse(
             text_collection=text_collection,
             document_indices=left_original_indices,
             depth=depth + 1,
-            global_metrics=global_metrics,
         )
         
-        result_node.right = self._recurse(
+        result_node.right, right_metrics = self._recurse(
             text_collection=text_collection,
             document_indices=right_original_indices,
             depth=depth + 1,
-            global_metrics=global_metrics,
         )
         
-        return result_node
+        # Combine metrics from current node and children using __add__
+        combined_metrics = node_metrics + left_metrics + right_metrics
+        
+        return result_node, combined_metrics

@@ -274,6 +274,7 @@ def test_split_metrics_default_values():
     assert metrics.medoid_nli_confidence_avg == 0.0
     assert metrics.llm_request_time == 0.0
     assert metrics.nli_time == 0.0
+    assert metrics.num_nodes == 1
 
 
 def test_rtp_builder_metrics_timing_consistency():

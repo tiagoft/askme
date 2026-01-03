@@ -36,6 +36,7 @@ class SplitMetrics(BaseModel):
         medoid_nli_confidence_avg: Average NLI confidence on selected medoid documents
         llm_request_time: Time (in milliseconds) spent on LLM calls
         nli_time: Time (in milliseconds) spent on NLI calls
+        num_nodes: Number of nodes represented in these metrics (for averaging)
     """
     llm_input_tokens: int = 0
     llm_output_tokens: int = 0
@@ -47,9 +48,14 @@ class SplitMetrics(BaseModel):
     medoid_nli_confidence_avg: float = 0.0
     llm_request_time: float = 0.0
     nli_time: float = 0.0
+    num_nodes: int = 1  # Track number of nodes for averaging
     
     def __add__(self, other: 'SplitMetrics') -> 'SplitMetrics':
-        """Add two SplitMetrics objects together to aggregate metrics."""
+        """Add two SplitMetrics objects together to aggregate metrics.
+        
+        Note: split_ratio and medoid_nli_confidence_avg are summed here for later
+        averaging. Use the num_nodes field to compute averages when needed.
+        """
         return SplitMetrics(
             llm_input_tokens=self.llm_input_tokens + other.llm_input_tokens,
             llm_output_tokens=self.llm_output_tokens + other.llm_output_tokens,
@@ -61,4 +67,5 @@ class SplitMetrics(BaseModel):
             medoid_nli_confidence_avg=self.medoid_nli_confidence_avg + other.medoid_nli_confidence_avg,
             llm_request_time=self.llm_request_time + other.llm_request_time,
             nli_time=self.nli_time + other.nli_time,
+            num_nodes=self.num_nodes + other.num_nodes,
         )
