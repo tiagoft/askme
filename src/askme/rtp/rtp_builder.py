@@ -2,8 +2,9 @@
 
 import faiss
 import numpy as np
+import time
 from collections.abc import Iterable
-from typing import Optional
+from typing import Optional, Union
 
 from .make_collection_index import make_faiss_index
 from .label_propagation import propagate_labels, make_knn_graph, sparse_affinity
@@ -112,7 +113,9 @@ class RTPBuilder:
         # Initialize LLM model
         self.llm_model = api.make_model(llm_model_name)
     
-    def __call__(self, X: Iterable[str], return_metrics: bool = False):
+    def __call__(
+        self, X: Iterable[str], return_metrics: bool = False
+    ) -> Union[TreeNode, tuple[TreeNode, SplitMetrics]]:
         """
         Execute the RTP algorithm on a collection of text documents.
         
@@ -125,8 +128,6 @@ class RTPBuilder:
             OR
             tuple[TreeNode, SplitMetrics]: TreeNode and metrics if return_metrics=True
         """
-        import time
-        
         start_time = time.time()
         metrics = SplitMetrics()
         
