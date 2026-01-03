@@ -175,6 +175,8 @@ class RTPBuilder:
         medoids = [text_collection[idx] for idx in medoid_indices]
         
         # Retry loop for generating a good question
+        # The loop attempts to generate a question that leads to an acceptable split ratio
+        # If min_split_ratio or max_split_ratio is None, no validation occurs
         blacklist = []
         hypothesis = None
         propagated_labels = None
@@ -239,6 +241,7 @@ class RTPBuilder:
             metrics.nli_time += (time.time() - nli_start) * 1000
             
             # Calculate average medoid NLI confidence
+            # Note: This is overwritten on each retry to reflect the final hypothesis's confidence
             if nli_confidences:
                 metrics.medoid_nli_confidence_avg = sum(nli_confidences) / len(nli_confidences)
             
