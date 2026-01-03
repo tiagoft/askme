@@ -51,7 +51,7 @@ class RTPBuilder:
         chunk_size: int = 50,
         overlap: int = 10,
         n_medoids: int = 4,
-        n_documents_to_answer: Union[int, str] = 'same',
+        n_documents_to_answer: Union[int, str, float] = 'same',
         knn_neighbors: int = 2,
         alpha: float = 0.99,
         max_iter: int = 100,
@@ -180,7 +180,11 @@ class RTPBuilder:
             n_docs_to_label = n_clusters
             doc_indices = medoid_indices
         else:
-            n_docs_to_label = min(self.n_documents_to_answer, len(text_collection))
+            if isinstance(self.n_documents_to_answer, float):
+                n_docs_to_label = int(self.n_documents_to_answer * len(text_collection))
+            else:
+                n_docs_to_label = int(self.n_documents_to_answer)
+            n_docs_to_label = min(n_docs_to_label, len(text_collection))
             doc_indices = kmeans_with_faiss(
                 faiss_index=faiss_index,
                 X=embeddings,
@@ -401,4 +405,4 @@ class RTPRecursion:
         # Combine metrics from current node and children using __add__
         combined_metrics = node_metrics + left_metrics + right_metrics
         
-        return result_node, combined_metrics
+        return node_root, combined_metrics

@@ -73,7 +73,7 @@ def kmeans_with_faiss(
     kmeans = faiss.Kmeans(
         d=faiss_index.d,
         k=n_clusters,
-        niter=20,
+        niter=50,
         verbose=True,
         gpu=False,
     )

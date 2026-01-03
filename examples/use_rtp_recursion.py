@@ -81,7 +81,7 @@ def main():
         builder=builder,
         min_node_size=3,      # Don't split nodes with fewer than 3 documents
         min_split_ratio=0.05,  # Split should have at least 20% in smaller child
-        max_split_ratio=0.05,  # Split should have at most 80% in smaller child
+        max_split_ratio=0.95,  # Split should have at most 80% in smaller child
         max_depth=3,          # Maximum tree depth
     )
     print("RTPRecursion initialized successfully!")
