@@ -2,12 +2,13 @@
 
 import faiss
 import numpy as np
+import time
 from collections.abc import Iterable
-from typing import Optional
+from typing import Optional, Union
 
 from .make_collection_index import make_faiss_index
 from .label_propagation import propagate_labels, make_knn_graph, sparse_affinity
-from .tree_models import TreeNode
+from .tree_models import TreeNode, SplitMetrics
 from ..utils import TextEmbeddingWithChunker, kmeans_with_faiss
 from ..makequestions import api, makequestion
 from ..askquestions import check_entailment, models
@@ -112,16 +113,24 @@ class RTPBuilder:
         # Initialize LLM model
         self.llm_model = api.make_model(llm_model_name)
     
-    def __call__(self, X: Iterable[str]) -> TreeNode:
+    def __call__(
+        self, X: Iterable[str], return_metrics: bool = False
+    ) -> Union[TreeNode, tuple[TreeNode, SplitMetrics]]:
         """
         Execute the RTP algorithm on a collection of text documents.
         
         Args:
             X: Iterable of text documents (strings)
+            return_metrics: If True, return (TreeNode, SplitMetrics), otherwise just TreeNode
             
         Returns:
             TreeNode: Root node of the RTP tree with document indices and question
+            OR
+            tuple[TreeNode, SplitMetrics]: TreeNode and metrics if return_metrics=True
         """
+        start_time = time.time()
+        metrics = SplitMetrics()
+        
         # Convert iterable to list to allow indexing
         text_collection = list(X)
         
@@ -129,6 +138,7 @@ class RTPBuilder:
             raise ValueError("Text collection cannot be empty")
         
         # Step 1: Vectorize documents and create FAISS index
+        faiss_start = time.time()
         dimension = self.embedding_model.model.get_sentence_embedding_dimension()
         faiss_index, embeddings = make_faiss_index(
             text_collection=text_collection,
@@ -138,6 +148,7 @@ class RTPBuilder:
             return_embeddings=True,
             gpu_resources=self.gpu_resources,
         )
+        metrics.faiss_search_time_ms = (time.time() - faiss_start) * 1000
         
         # Step 2: Get medoids via k-means for hypothesis generation
         n_clusters = min(self.n_medoids, len(text_collection))
@@ -150,12 +161,18 @@ class RTPBuilder:
         medoids = [text_collection[idx] for idx in medoid_indices]
         
         # Step 3: Generate hypothesis using LLM
+        llm_start = time.time()
         response = makequestion.make_a_question_about_collection(
             collection=medoids,
             model=self.llm_model,
             retries=5,
         )
         hypothesis = response.output.hypothesis
+        metrics.llm_request_time = (time.time() - llm_start) * 1000
+        
+        # Track LLM tokens
+        metrics.llm_input_tokens = response.usage().input_tokens
+        metrics.llm_output_tokens = response.usage().output_tokens
         
         # Step 4: Use NLI to answer the question for selected documents
         n_docs_to_label = min(self.n_documents_to_answer, len(text_collection))
@@ -169,6 +186,8 @@ class RTPBuilder:
         answers = -np.ones((len(text_collection),), dtype=object)
         
         device = 'cuda' if self.use_gpu else 'cpu'
+        nli_confidences = []
+        nli_start = time.time()
         for doc_index in doc_indices:
             document = text_collection[doc_index]
             pooled_results = check_entailment.pool_nli_scores(
@@ -183,8 +202,16 @@ class RTPBuilder:
             )
             entails, entailment_score, contradiction_score, P_entailment = pooled_results
             answers[doc_index] = 1 if entails else 0
+            nli_confidences.append(P_entailment)
+            metrics.nli_calls += 1
+        metrics.nli_time = (time.time() - nli_start) * 1000
+        
+        # Calculate average medoid NLI confidence
+        if nli_confidences:
+            metrics.medoid_nli_confidence_avg = sum(nli_confidences) / len(nli_confidences)
         
         # Step 5: Propagate labels
+        label_prop_start = time.time()
         indices, distances = make_knn_graph(
             np.array(embeddings).astype('float32'),
             faiss_index,
@@ -197,11 +224,17 @@ class RTPBuilder:
             max_iter=self.max_iter,
             tol=self.tol
         )
+        metrics.label_propagation_time_ms = (time.time() - label_prop_start) * 1000
         
         # Step 6: Build TreeNode based on propagated labels
         # Documents where label == 1 go to left child, label == 0 go to right child
         left_docs = [i for i, label in enumerate(propagated_labels) if label == 1]
         right_docs = [i for i, label in enumerate(propagated_labels) if label == 0]
+        
+        # Calculate split ratio (proportion in left child)
+        # If no split occurs (all docs in one child), ratio remains 0.0
+        if len(left_docs) > 0 and len(right_docs) > 0:
+            metrics.split_ratio = len(left_docs) / len(text_collection)
         
         # Create tree node
         root = TreeNode(
@@ -214,4 +247,9 @@ class RTPBuilder:
             root.left = TreeNode(documents=left_docs)
             root.right = TreeNode(documents=right_docs)
         
+        # Calculate total time
+        metrics.total_time_ms = (time.time() - start_time) * 1000
+        
+        if return_metrics:
+            return root, metrics
         return root
