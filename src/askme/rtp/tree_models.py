@@ -9,9 +9,6 @@ class TreeNode(BaseModel):
     question: Optional[str] = None  # Question used to split this node
     metrics: Optional['SplitMetrics'] = None  # Metrics for this node's split
 
-
-TreeNode.model_rebuild()
-
 class TokenUsage(BaseModel):
     total_tokens: int = 0
     prompt_tokens: int = 0
@@ -72,3 +69,6 @@ class SplitMetrics(BaseModel):
             nli_time=self.nli_time + other.nli_time,
             num_nodes=self.num_nodes + other.num_nodes,
         )
+        
+
+TreeNode.model_rebuild()

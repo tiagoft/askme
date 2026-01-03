@@ -77,7 +77,7 @@ def kmeans_with_faiss(
         verbose=True,
         gpu=False,
     )
-    kmeans.train(X)
+    kmeans.train(X, init_centroids=X[:n_clusters,:])
 
     # medoid indexes
     # Find medoids

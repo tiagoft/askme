@@ -70,8 +70,8 @@ def main():
     print("Initializing RTPBuilder...")
     builder = RTPBuilder(
         use_gpu=False,
-        n_medoids=3,
-        n_documents_to_answer=5,
+        n_medoids=2,
+        n_documents_to_answer=6,
     )
     print("RTPBuilder initialized successfully!")
     
@@ -80,8 +80,8 @@ def main():
     recursion = RTPRecursion(
         builder=builder,
         min_node_size=3,      # Don't split nodes with fewer than 3 documents
-        min_split_ratio=0.2,  # Split should have at least 20% in smaller child
-        max_split_ratio=0.8,  # Split should have at most 80% in smaller child
+        min_split_ratio=0.05,  # Split should have at least 20% in smaller child
+        max_split_ratio=0.05,  # Split should have at most 80% in smaller child
         max_depth=3,          # Maximum tree depth
     )
     print("RTPRecursion initialized successfully!")

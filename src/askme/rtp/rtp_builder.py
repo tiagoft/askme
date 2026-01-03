@@ -51,7 +51,7 @@ class RTPBuilder:
         chunk_size: int = 50,
         overlap: int = 10,
         n_medoids: int = 4,
-        n_documents_to_answer: int = 6,
+        n_documents_to_answer: Union[int, str] = 'same',
         knn_neighbors: int = 2,
         alpha: float = 0.99,
         max_iter: int = 100,
@@ -175,12 +175,17 @@ class RTPBuilder:
         metrics.llm_output_tokens = response.usage().output_tokens
         
         # Step 4: Use NLI to answer the question for selected documents
-        n_docs_to_label = min(self.n_documents_to_answer, len(text_collection))
-        doc_indices = kmeans_with_faiss(
-            faiss_index=faiss_index,
-            X=embeddings,
-            n_clusters=n_docs_to_label,
-        )
+        
+        if self.n_documents_to_answer == 'same':
+            n_docs_to_label = n_clusters
+            doc_indices = medoid_indices
+        else:
+            n_docs_to_label = min(self.n_documents_to_answer, len(text_collection))
+            doc_indices = kmeans_with_faiss(
+                faiss_index=faiss_index,
+                X=embeddings,
+                n_clusters=n_docs_to_label,
+            )
         
         # Initialize labels as unlabeled (-1)
         answers = -np.ones((len(text_collection),), dtype=object)
@@ -352,16 +357,12 @@ class RTPRecursion:
         node_root, node_metrics = self.builder(node_documents, return_metrics=True)
         
         # Create tree node with original document indices
-        result_node = TreeNode(
-            documents=document_indices,
-            question=node_root.question,
-            metrics=node_metrics,
-        )
+        node_root.metrics = node_metrics
         
         # Check if split is valid
         if node_root.left is None or node_root.right is None:
             # No split occurred
-            return result_node, node_metrics
+            return node_root, node_metrics
         
         # Check split ratio criteria
         left_count = len(node_root.left.documents)
@@ -369,7 +370,7 @@ class RTPRecursion:
         total_count = left_count + right_count
         
         if total_count == 0:
-            return result_node, node_metrics
+            return node_root, node_metrics
         
         # Calculate split ratio (proportion in smaller child)
         smaller_count = min(left_count, right_count)
@@ -378,20 +379,20 @@ class RTPRecursion:
         # Check if split ratio is within acceptable range
         if split_ratio < self.min_split_ratio or split_ratio > self.max_split_ratio:
             # Split ratio not acceptable, don't recurse
-            return result_node, node_metrics
+            return node_root, node_metrics
         
         # Map local indices back to original indices
         left_original_indices = [document_indices[i] for i in node_root.left.documents]
         right_original_indices = [document_indices[i] for i in node_root.right.documents]
         
         # Recurse into children and accumulate metrics
-        result_node.left, left_metrics = self._recurse(
+        node_root.left, left_metrics = self._recurse(
             text_collection=text_collection,
             document_indices=left_original_indices,
             depth=depth + 1,
         )
         
-        result_node.right, right_metrics = self._recurse(
+        node_root.right, right_metrics = self._recurse(
             text_collection=text_collection,
             document_indices=right_original_indices,
             depth=depth + 1,

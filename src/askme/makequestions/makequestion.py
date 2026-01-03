@@ -16,7 +16,8 @@ def make_a_question_about_collection(
     """Generate a hypothesis about a collection of texts."""
     
     prompt = f"""Given the following collection of texts, generate a concise hypothesis
-    that is true for half of the texts, but is not true for the other half.
+    that is true for half of the texts, but is not true for the other half. The hypothesis
+    must me a single assertion that can be evaluated as true or false.
     Texts:
     {collection}
     """
