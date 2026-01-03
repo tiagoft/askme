@@ -1,7 +1,7 @@
 """Tests for RTPBuilder class."""
 
 import pytest
-from askme.rtp import RTPBuilder, TreeNode
+from askme.rtp import RTPBuilder, TreeNode, SplitMetrics
 
 
 # Sample text collection for testing
@@ -192,3 +192,90 @@ def test_rtp_builder_result_can_be_serialized():
     # Should be able to deserialize back
     loaded_result = TreeNode.model_validate_json(json_string)
     assert loaded_result == result
+
+
+def test_rtp_builder_returns_metrics_when_requested():
+    """Test that RTPBuilder returns metrics when return_metrics=True."""
+    builder = RTPBuilder(use_gpu=False, n_medoids=2, n_documents_to_answer=3)
+    
+    result, metrics = builder(sample_text_collection, return_metrics=True)
+    
+    # Verify result is still a TreeNode
+    assert isinstance(result, TreeNode)
+    assert result.documents == list(range(len(sample_text_collection)))
+    assert result.question is not None
+    
+    # Verify metrics is a SplitMetrics instance
+    assert isinstance(metrics, SplitMetrics)
+    
+    # Verify all metrics fields are populated
+    assert metrics.llm_input_tokens > 0
+    assert metrics.llm_output_tokens > 0
+    assert metrics.nli_calls > 0
+    assert metrics.faiss_search_time_ms >= 0.0
+    assert metrics.label_propagation_time_ms >= 0.0
+    assert metrics.total_time_ms > 0.0
+    # split_ratio should be 0 if no split, or > 0 and < 1 if split happened
+    assert 0.0 <= metrics.split_ratio <= 1.0
+    # medoid_nli_confidence_avg should be between 0 and 1
+    assert 0.0 <= metrics.medoid_nli_confidence_avg <= 1.0
+
+
+def test_rtp_builder_default_no_metrics():
+    """Test that RTPBuilder returns only TreeNode by default (return_metrics=False)."""
+    builder = RTPBuilder(use_gpu=False, n_medoids=2, n_documents_to_answer=2)
+    
+    result = builder(sample_text_collection)
+    
+    # Should return just TreeNode, not a tuple
+    assert isinstance(result, TreeNode)
+    assert not isinstance(result, tuple)
+
+
+def test_split_metrics_can_be_serialized():
+    """Test that SplitMetrics can be serialized to JSON."""
+    metrics = SplitMetrics(
+        llm_input_tokens=100,
+        llm_output_tokens=50,
+        nli_calls=5,
+        faiss_search_time_ms=123.45,
+        label_propagation_time_ms=234.56,
+        total_time_ms=500.0,
+        split_ratio=0.6,
+        medoid_nli_confidence_avg=0.85,
+    )
+    
+    # Should be able to serialize to JSON
+    json_string = metrics.model_dump_json()
+    assert isinstance(json_string, str)
+    assert len(json_string) > 0
+    
+    # Should be able to deserialize back
+    loaded_metrics = SplitMetrics.model_validate_json(json_string)
+    assert loaded_metrics == metrics
+
+
+def test_split_metrics_default_values():
+    """Test that SplitMetrics has correct default values."""
+    metrics = SplitMetrics()
+    
+    assert metrics.llm_input_tokens == 0
+    assert metrics.llm_output_tokens == 0
+    assert metrics.nli_calls == 0
+    assert metrics.faiss_search_time_ms == 0.0
+    assert metrics.label_propagation_time_ms == 0.0
+    assert metrics.total_time_ms == 0.0
+    assert metrics.split_ratio == 0.0
+    assert metrics.medoid_nli_confidence_avg == 0.0
+
+
+def test_rtp_builder_metrics_timing_consistency():
+    """Test that timing metrics are consistent (total >= sum of parts)."""
+    builder = RTPBuilder(use_gpu=False, n_medoids=2, n_documents_to_answer=2)
+    
+    result, metrics = builder(sample_text_collection, return_metrics=True)
+    
+    # Total time should be at least as long as the sum of measured parts
+    # (though not necessarily equal since there are other operations)
+    measured_time = metrics.faiss_search_time_ms + metrics.label_propagation_time_ms
+    assert metrics.total_time_ms >= measured_time
