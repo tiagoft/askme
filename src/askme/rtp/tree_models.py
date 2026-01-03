@@ -7,6 +7,7 @@ class TreeNode(BaseModel):
     right: Optional['TreeNode'] = None  # Right child node
     #parent: Optional['TreeNode'] = None  # Parent node
     question: Optional[str] = None  # Question used to split this node
+    metrics: Optional['SplitMetrics'] = None  # Metrics for this node's split
 
 
 TreeNode.model_rebuild()
@@ -35,6 +36,7 @@ class SplitMetrics(BaseModel):
         medoid_nli_confidence_avg: Average NLI confidence on selected medoid documents
         llm_request_time: Time (in milliseconds) spent on LLM calls
         nli_time: Time (in milliseconds) spent on NLI calls
+        num_nodes: Number of nodes represented in these metrics (for averaging)
     """
     llm_input_tokens: int = 0
     llm_output_tokens: int = 0
@@ -46,3 +48,27 @@ class SplitMetrics(BaseModel):
     medoid_nli_confidence_avg: float = 0.0
     llm_request_time: float = 0.0
     nli_time: float = 0.0
+    num_nodes: int = 1  # Track number of nodes for averaging
+    
+    def __add__(self, other: 'SplitMetrics') -> 'SplitMetrics':
+        """Add two SplitMetrics objects together to aggregate metrics.
+        
+        Note: This method sums all metrics including split_ratio and 
+        medoid_nli_confidence_avg. For ratio/average fields, you should divide
+        by num_nodes to get the average across all nodes. Example:
+            combined = metrics1 + metrics2 + metrics3
+            avg_split_ratio = combined.split_ratio / combined.num_nodes
+        """
+        return SplitMetrics(
+            llm_input_tokens=self.llm_input_tokens + other.llm_input_tokens,
+            llm_output_tokens=self.llm_output_tokens + other.llm_output_tokens,
+            nli_calls=self.nli_calls + other.nli_calls,
+            faiss_search_time_ms=self.faiss_search_time_ms + other.faiss_search_time_ms,
+            label_propagation_time_ms=self.label_propagation_time_ms + other.label_propagation_time_ms,
+            total_time_ms=self.total_time_ms + other.total_time_ms,
+            split_ratio=self.split_ratio + other.split_ratio,
+            medoid_nli_confidence_avg=self.medoid_nli_confidence_avg + other.medoid_nli_confidence_avg,
+            llm_request_time=self.llm_request_time + other.llm_request_time,
+            nli_time=self.nli_time + other.nli_time,
+            num_nodes=self.num_nodes + other.num_nodes,
+        )
