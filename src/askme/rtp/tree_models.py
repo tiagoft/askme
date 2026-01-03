@@ -53,8 +53,11 @@ class SplitMetrics(BaseModel):
     def __add__(self, other: 'SplitMetrics') -> 'SplitMetrics':
         """Add two SplitMetrics objects together to aggregate metrics.
         
-        Note: split_ratio and medoid_nli_confidence_avg are summed here for later
-        averaging. Use the num_nodes field to compute averages when needed.
+        Note: This method sums all metrics including split_ratio and 
+        medoid_nli_confidence_avg. For ratio/average fields, you should divide
+        by num_nodes to get the average across all nodes. Example:
+            combined = metrics1 + metrics2 + metrics3
+            avg_split_ratio = combined.split_ratio / combined.num_nodes
         """
         return SplitMetrics(
             llm_input_tokens=self.llm_input_tokens + other.llm_input_tokens,

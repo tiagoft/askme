@@ -345,8 +345,8 @@ class RTPRecursion:
         )
         
         if should_stop:
-            # Create leaf node with no metrics
-            return TreeNode(documents=document_indices), SplitMetrics(num_nodes=0)
+            # Create leaf node - leaf nodes don't execute RTPBuilder, so no metrics
+            return TreeNode(documents=document_indices), SplitMetrics()
         
         # Execute RTPBuilder for current node
         node_root, node_metrics = self.builder(node_documents, return_metrics=True)
