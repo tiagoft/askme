@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RTP Tree Visualizer</title>
+    <!-- 
+        NOTE: This version loads external libraries from CDN.
+        For offline use or enhanced security, please use tree_visualizer_standalone.html instead.
+    -->
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .subtitle {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .controls {
+            padding: 30px;
+            background: #f8f9fa;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #495057;
+        }
+
+        input[type="file"],
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="file"]:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            font-family: 'Courier New', monospace;
+            min-height: 150px;
+            resize: vertical;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: white;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(245, 87, 108, 0.4);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(79, 172, 254, 0.4);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        #visualization {
+            padding: 30px;
+            overflow: auto;
+            position: relative;
+        }
+
+        #tree-container {
+            width: 100%;
+            min-height: 600px;
+            position: relative;
+        }
+
+        .node circle {
+            fill: #667eea;
+            stroke: #764ba2;
+            stroke-width: 3px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .node circle:hover {
+            fill: #764ba2;
+            r: 12;
+        }
+
+        .node.leaf circle {
+            fill: #4facfe;
+            stroke: #00f2fe;
+        }
+
+        .node text {
+            font-size: 12px;
+            font-weight: 600;
+            fill: #333;
+            text-anchor: middle;
+        }
+
+        .link {
+            fill: none;
+            stroke: #adb5bd;
+            stroke-width: 2px;
+            stroke-opacity: 0.6;
+        }
+
+        .yes-link {
+            stroke: #28a745;
+        }
+
+        .no-link {
+            stroke: #dc3545;
+        }
+
+        .node-info {
+            position: absolute;
+            background: white;
+            border: 2px solid #667eea;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            max-width: 400px;
+            z-index: 1000;
+            display: none;
+        }
+
+        .node-info h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .node-info .section {
+            margin-bottom: 15px;
+        }
+
+        .node-info .section-title {
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 8px;
+            font-size: 0.95em;
+        }
+
+        .node-info .question {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            border-left: 4px solid #667eea;
+            font-style: italic;
+            color: #212529;
+        }
+
+        .node-info .documents {
+            background: #e7f3ff;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .node-info .metrics {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .metric-item {
+            background: #f8f9fa;
+            padding: 8px;
+            border-radius: 5px;
+            font-size: 0.85em;
+        }
+
+        .metric-label {
+            color: #6c757d;
+            font-size: 0.85em;
+        }
+
+        .metric-value {
+            font-weight: 700;
+            color: #212529;
+            font-size: 1.1em;
+        }
+
+        .close-info {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+            font-size: 18px;
+            line-height: 1;
+            padding: 0;
+        }
+
+        .close-info:hover {
+            background: #c82333;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px;
+            border: 1px solid #f5c6cb;
+        }
+
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px;
+            border: 1px solid #c3e6cb;
+        }
+
+        .legend {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            font-size: 0.9em;
+        }
+
+        .legend-title {
+            font-weight: 700;
+            margin-bottom: 10px;
+            color: #495057;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin-right: 10px;
+            border: 2px solid #333;
+        }
+
+        .legend-line {
+            width: 30px;
+            height: 3px;
+            margin-right: 10px;
+        }
+
+        @media print {
+            body {
+                background: white;
+            }
+            .controls {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🌳 RTP Tree Visualizer</h1>
+            <p class="subtitle">Interactive visualization of Recursive Topic Partitioning trees</p>
+        </header>
+
+        <div class="controls">
+            <div class="control-group">
+                <label for="file-input">📁 Upload Tree JSON File:</label>
+                <input type="file" id="file-input" accept=".json">
+            </div>
+
+            <div class="control-group">
+                <label for="json-input">📝 Or paste JSON directly:</label>
+                <textarea id="json-input" placeholder='Paste your tree JSON here...'></textarea>
+            </div>
+
+            <div class="button-group">
+                <button class="btn-primary" onclick="loadFromFile()">📂 Load from File</button>
+                <button class="btn-primary" onclick="loadFromText()">📋 Load from Text</button>
+                <button class="btn-secondary" onclick="loadSampleData()">🔬 Load Sample Data</button>
+                <button class="btn-success" onclick="exportToPDF()" id="export-btn" disabled>📄 Export to PDF</button>
+                <button class="btn-success" onclick="downloadSVG()" id="download-svg-btn" disabled>💾 Download SVG</button>
+            </div>
+        </div>
+
+        <div id="visualization">
+            <div id="tree-container"></div>
+            <div class="node-info" id="node-info">
+                <button class="close-info" onclick="hideNodeInfo()">×</button>
+                <div id="node-info-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let treeData = null;
+        let svg = null;
+        let g = null;
+        let zoom = null;
+
+        function showMessage(message, type = 'error') {
+            const container = document.getElementById('visualization');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = type === 'error' ? 'error-message' : 'success-message';
+            messageDiv.textContent = message;
+            container.insertBefore(messageDiv, container.firstChild);
+            setTimeout(() => messageDiv.remove(), 5000);
+        }
+
+        function loadFromFile() {
+            const fileInput = document.getElementById('file-input');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                showMessage('Please select a file first.', 'error');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const json = JSON.parse(e.target.result);
+                    treeData = json;
+                    visualizeTree(json);
+                    document.getElementById('export-btn').disabled = false;
+                    document.getElementById('download-svg-btn').disabled = false;
+                    showMessage('Tree loaded successfully!', 'success');
+                } catch (error) {
+                    showMessage('Error parsing JSON: ' + error.message, 'error');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function loadFromText() {
+            const jsonText = document.getElementById('json-input').value;
+            
+            if (!jsonText.trim()) {
+                showMessage('Please paste JSON data first.', 'error');
+                return;
+            }
+
+            try {
+                const json = JSON.parse(jsonText);
+                treeData = json;
+                visualizeTree(json);
+                document.getElementById('export-btn').disabled = false;
+                document.getElementById('download-svg-btn').disabled = false;
+                showMessage('Tree loaded successfully!', 'success');
+            } catch (error) {
+                showMessage('Error parsing JSON: ' + error.message, 'error');
+            }
+        }
+
+        function loadSampleData() {
+            const sampleTree = {
+                "documents": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+                "question": "Is this about animals?",
+                "metrics": {
+                    "nli_calls": 10,
+                    "total_time_ms": 1500,
+                    "split_ratio": 0.5,
+                    "medoid_nli_confidence_avg": 0.85
+                },
+                "left": {
+                    "documents": [0, 1, 2, 3, 4],
+                    "question": "Is this about cats?",
+                    "metrics": {
+                        "nli_calls": 5,
+                        "total_time_ms": 700,
+                        "split_ratio": 0.67
+                    },
+                    "left": {
+                        "documents": [0, 1, 2],
+                        "question": null,
+                        "metrics": null,
+                        "left": null,
+                        "right": null
+                    },
+                    "right": {
+                        "documents": [3, 4],
+                        "question": null,
+                        "metrics": null,
+                        "left": null,
+                        "right": null
+                    }
+                },
+                "right": {
+                    "documents": [5, 6, 7, 8, 9],
+                    "question": "Is this about dogs?",
+                    "metrics": {
+                        "nli_calls": 5,
+                        "total_time_ms": 800,
+                        "split_ratio": 0.33
+                    },
+                    "left": {
+                        "documents": [5, 6],
+                        "question": null,
+                        "metrics": null,
+                        "left": null,
+                        "right": null
+                    },
+                    "right": {
+                        "documents": [7, 8, 9],
+                        "question": null,
+                        "metrics": null,
+                        "left": null,
+                        "right": null
+                    }
+                }
+            };
+
+            treeData = sampleTree;
+            document.getElementById('json-input').value = JSON.stringify(sampleTree, null, 2);
+            visualizeTree(sampleTree);
+            document.getElementById('export-btn').disabled = false;
+            document.getElementById('download-svg-btn').disabled = false;
+            showMessage('Sample data loaded successfully!', 'success');
+        }
+
+        function convertToD3Hierarchy(node, parent = null) {
+            const d3Node = {
+                name: node.question || 'Leaf Node',
+                documents: node.documents,
+                metrics: node.metrics,
+                children: []
+            };
+
+            if (node.left) {
+                d3Node.children.push({
+                    ...convertToD3Hierarchy(node.left, d3Node),
+                    edgeLabel: 'YES'
+                });
+            }
+            if (node.right) {
+                d3Node.children.push({
+                    ...convertToD3Hierarchy(node.right, d3Node),
+                    edgeLabel: 'NO'
+                });
+            }
+
+            if (d3Node.children.length === 0) {
+                delete d3Node.children;
+            }
+
+            return d3Node;
+        }
+
+        function visualizeTree(data) {
+            // Clear previous visualization
+            document.getElementById('tree-container').innerHTML = '';
+
+            // Convert to D3 hierarchy
+            const hierarchyData = convertToD3Hierarchy(data);
+            const root = d3.hierarchy(hierarchyData);
+
+            // Calculate tree layout
+            const width = 1200;
+            const height = 800;
+            const margin = { top: 20, right: 120, bottom: 20, left: 120 };
+
+            // Create tree layout
+            const treeLayout = d3.tree()
+                .size([height - margin.top - margin.bottom, width - margin.left - margin.right])
+                .separation((a, b) => (a.parent == b.parent ? 1 : 1.2));
+
+            treeLayout(root);
+
+            // Create SVG
+            svg = d3.select('#tree-container')
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height)
+                .style('background', 'white');
+
+            // Add zoom behavior
+            zoom = d3.zoom()
+                .scaleExtent([0.1, 3])
+                .on('zoom', (event) => {
+                    g.attr('transform', event.transform);
+                });
+
+            svg.call(zoom);
+
+            g = svg.append('g')
+                .attr('transform', `translate(${margin.left},${margin.top})`);
+
+            // Add legend
+            addLegend(svg, width, height);
+
+            // Draw links
+            const links = g.selectAll('.link')
+                .data(root.links())
+                .enter()
+                .append('path')
+                .attr('class', d => {
+                    const edgeLabel = d.target.data.edgeLabel;
+                    return `link ${edgeLabel === 'YES' ? 'yes-link' : 'no-link'}`;
+                })
+                .attr('d', d3.linkHorizontal()
+                    .x(d => d.y)
+                    .y(d => d.x));
+
+            // Draw link labels
+            g.selectAll('.link-label')
+                .data(root.links())
+                .enter()
+                .append('text')
+                .attr('class', 'link-label')
+                .attr('x', d => (d.source.y + d.target.y) / 2)
+                .attr('y', d => (d.source.x + d.target.x) / 2)
+                .attr('dy', -5)
+                .attr('text-anchor', 'middle')
+                .attr('font-size', '11px')
+                .attr('font-weight', 'bold')
+                .attr('fill', d => d.target.data.edgeLabel === 'YES' ? '#28a745' : '#dc3545')
+                .text(d => d.target.data.edgeLabel);
+
+            // Draw nodes
+            const nodes = g.selectAll('.node')
+                .data(root.descendants())
+                .enter()
+                .append('g')
+                .attr('class', d => `node ${!d.children ? 'leaf' : ''}`)
+                .attr('transform', d => `translate(${d.y},${d.x})`)
+                .on('click', (event, d) => showNodeInfo(d, event));
+
+            nodes.append('circle')
+                .attr('r', 10);
+
+            nodes.append('text')
+                .attr('dy', -15)
+                .attr('text-anchor', 'middle')
+                .text(d => `Docs: ${d.data.documents.length}`)
+                .style('font-size', '11px')
+                .style('fill', '#666');
+
+            // Center the tree
+            const bounds = g.node().getBBox();
+            const fullWidth = bounds.width;
+            const fullHeight = bounds.height;
+            const midX = bounds.x + fullWidth / 2;
+            const midY = bounds.y + fullHeight / 2;
+
+            const scale = 0.8 / Math.max(fullWidth / width, fullHeight / height);
+            const translate = [width / 2 - scale * midX, height / 2 - scale * midY];
+
+            svg.call(zoom.transform, d3.zoomIdentity
+                .translate(translate[0], translate[1])
+                .scale(scale));
+        }
+
+        function addLegend(svg, width, height) {
+            const legend = svg.append('g')
+                .attr('class', 'legend')
+                .attr('transform', `translate(${width - 180}, 20)`);
+
+            legend.append('rect')
+                .attr('width', 160)
+                .attr('height', 140)
+                .attr('fill', 'white')
+                .attr('stroke', '#dee2e6')
+                .attr('stroke-width', 1)
+                .attr('rx', 8);
+
+            legend.append('text')
+                .attr('x', 10)
+                .attr('y', 20)
+                .attr('class', 'legend-title')
+                .text('Legend')
+                .style('font-weight', 'bold');
+
+            // Internal node
+            legend.append('circle')
+                .attr('cx', 20)
+                .attr('cy', 45)
+                .attr('r', 8)
+                .attr('fill', '#667eea')
+                .attr('stroke', '#764ba2')
+                .attr('stroke-width', 2);
+
+            legend.append('text')
+                .attr('x', 35)
+                .attr('y', 50)
+                .text('Internal Node')
+                .style('font-size', '12px');
+
+            // Leaf node
+            legend.append('circle')
+                .attr('cx', 20)
+                .attr('cy', 70)
+                .attr('r', 8)
+                .attr('fill', '#4facfe')
+                .attr('stroke', '#00f2fe')
+                .attr('stroke-width', 2);
+
+            legend.append('text')
+                .attr('x', 35)
+                .attr('y', 75)
+                .text('Leaf Node')
+                .style('font-size', '12px');
+
+            // YES link
+            legend.append('line')
+                .attr('x1', 10)
+                .attr('y1', 95)
+                .attr('x2', 30)
+                .attr('y2', 95)
+                .attr('stroke', '#28a745')
+                .attr('stroke-width', 3);
+
+            legend.append('text')
+                .attr('x', 35)
+                .attr('y', 99)
+                .text('YES branch')
+                .style('font-size', '12px');
+
+            // NO link
+            legend.append('line')
+                .attr('x1', 10)
+                .attr('y1', 120)
+                .attr('x2', 30)
+                .attr('y2', 120)
+                .attr('stroke', '#dc3545')
+                .attr('stroke-width', 3);
+
+            legend.append('text')
+                .attr('x', 35)
+                .attr('y', 124)
+                .text('NO branch')
+                .style('font-size', '12px');
+        }
+
+        function showNodeInfo(d, event) {
+            const info = document.getElementById('node-info');
+            const content = document.getElementById('node-info-content');
+
+            let html = '<h3>Node Information</h3>';
+
+            // Question
+            if (d.data.name && d.data.name !== 'Leaf Node') {
+                html += '<div class="section">';
+                html += '<div class="section-title">Question:</div>';
+                html += `<div class="question">${d.data.name}</div>`;
+                html += '</div>';
+            } else {
+                html += '<div class="section">';
+                html += '<div class="section-title">Type:</div>';
+                html += '<div class="question">Leaf Node (no split)</div>';
+                html += '</div>';
+            }
+
+            // Documents
+            html += '<div class="section">';
+            html += '<div class="section-title">Documents:</div>';
+            html += `<div class="documents">Count: ${d.data.documents.length}<br>`;
+            html += `IDs: [${d.data.documents.join(', ')}]</div>`;
+            html += '</div>';
+
+            // Metrics
+            if (d.data.metrics) {
+                html += '<div class="section">';
+                html += '<div class="section-title">Split Metrics:</div>';
+                html += '<div class="metrics">';
+                
+                if (d.data.metrics.split_ratio !== undefined) {
+                    html += '<div class="metric-item">';
+                    html += '<div class="metric-label">Split Ratio</div>';
+                    html += `<div class="metric-value">${d.data.metrics.split_ratio.toFixed(2)}</div>`;
+                    html += '</div>';
+                }
+                
+                if (d.data.metrics.nli_calls !== undefined) {
+                    html += '<div class="metric-item">';
+                    html += '<div class="metric-label">NLI Calls</div>';
+                    html += `<div class="metric-value">${d.data.metrics.nli_calls}</div>`;
+                    html += '</div>';
+                }
+                
+                if (d.data.metrics.total_time_ms !== undefined) {
+                    html += '<div class="metric-item">';
+                    html += '<div class="metric-label">Time (ms)</div>';
+                    html += `<div class="metric-value">${d.data.metrics.total_time_ms.toFixed(0)}</div>`;
+                    html += '</div>';
+                }
+                
+                if (d.data.metrics.medoid_nli_confidence_avg !== undefined) {
+                    html += '<div class="metric-item">';
+                    html += '<div class="metric-label">Avg Confidence</div>';
+                    html += `<div class="metric-value">${d.data.metrics.medoid_nli_confidence_avg.toFixed(2)}</div>`;
+                    html += '</div>';
+                }
+                
+                if (d.data.metrics.llm_input_tokens !== undefined) {
+                    html += '<div class="metric-item">';
+                    html += '<div class="metric-label">LLM Input Tokens</div>';
+                    html += `<div class="metric-value">${d.data.metrics.llm_input_tokens}</div>`;
+                    html += '</div>';
+                }
+
+                if (d.data.metrics.llm_output_tokens !== undefined) {
+                    html += '<div class="metric-item">';
+                    html += '<div class="metric-label">LLM Output Tokens</div>';
+                    html += `<div class="metric-value">${d.data.metrics.llm_output_tokens}</div>`;
+                    html += '</div>';
+                }
+                
+                html += '</div>';
+                html += '</div>';
+            }
+
+            content.innerHTML = html;
+
+            // Position the info box
+            const containerRect = document.getElementById('tree-container').getBoundingClientRect();
+            info.style.display = 'block';
+            info.style.left = '50px';
+            info.style.top = '50px';
+        }
+
+        function hideNodeInfo() {
+            document.getElementById('node-info').style.display = 'none';
+        }
+
+        async function exportToPDF() {
+            if (!treeData) {
+                showMessage('No tree data loaded', 'error');
+                return;
+            }
+
+            const { jsPDF } = window.jspdf;
+            
+            showMessage('Generating PDF...', 'success');
+
+            try {
+                const svgElement = document.querySelector('#tree-container svg');
+                const canvas = await html2canvas(svgElement, {
+                    backgroundColor: '#ffffff',
+                    scale: 2
+                });
+
+                const imgData = canvas.toDataURL('image/png');
+                const pdf = new jsPDF({
+                    orientation: canvas.width > canvas.height ? 'landscape' : 'portrait',
+                    unit: 'px',
+                    format: [canvas.width, canvas.height]
+                });
+
+                pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+                pdf.save('rtp_tree.pdf');
+                showMessage('PDF exported successfully!', 'success');
+            } catch (error) {
+                showMessage('Error exporting PDF: ' + error.message, 'error');
+            }
+        }
+
+        function downloadSVG() {
+            if (!treeData) {
+                showMessage('No tree data loaded', 'error');
+                return;
+            }
+
+            const svgElement = document.querySelector('#tree-container svg');
+            const svgData = new XMLSerializer().serializeToString(svgElement);
+            const blob = new Blob([svgData], { type: 'image/svg+xml' });
+            const url = URL.createObjectURL(blob);
+            
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'rtp_tree.svg';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            
+            showMessage('SVG downloaded successfully!', 'success');
+        }
+
+        // Hide node info when clicking outside
+        document.addEventListener('click', function(event) {
+            const nodeInfo = document.getElementById('node-info');
+            const treeContainer = document.getElementById('tree-container');
+            
+            if (nodeInfo.style.display === 'block' && 
+                !nodeInfo.contains(event.target) && 
+                !treeContainer.contains(event.target)) {
+                hideNodeInfo();
+            }
+        });
+    </script>
+</body>
+</html>
