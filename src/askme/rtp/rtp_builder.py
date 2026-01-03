@@ -253,3 +253,168 @@ class RTPBuilder:
         if return_metrics:
             return root, metrics
         return root
+
+
+class RTPRecursion:
+    """
+    RTPRecursion class that recursively builds RTP trees with stopping criteria.
+    
+    This class wraps an RTPBuilder and recursively applies it to build a complete
+    tree structure with configurable stopping criteria.
+    
+    Attributes:
+        builder: Pre-initialized RTPBuilder instance
+        min_node_size: Minimum number of documents for a node to be split
+        min_split_ratio: Minimum split ratio (proportion in smaller child)
+        max_split_ratio: Maximum split ratio (proportion in smaller child)
+        max_depth: Maximum depth of the tree
+    """
+    
+    def __init__(
+        self,
+        builder: RTPBuilder,
+        min_node_size: int = 2,
+        min_split_ratio: float = 0.2,
+        max_split_ratio: float = 0.8,
+        max_depth: int = 10,
+    ):
+        """
+        Initialize RTPRecursion with a builder and stopping criteria.
+        
+        Args:
+            builder: Pre-initialized RTPBuilder instance
+            min_node_size: Minimum number of documents required to split a node
+            min_split_ratio: Minimum split ratio for a valid split (default: 0.2)
+            max_split_ratio: Maximum split ratio for a valid split (default: 0.8)
+            max_depth: Maximum depth of the tree (default: 10)
+        """
+        self.builder = builder
+        self.min_node_size = min_node_size
+        self.min_split_ratio = min_split_ratio
+        self.max_split_ratio = max_split_ratio
+        self.max_depth = max_depth
+    
+    def __call__(
+        self, X: Iterable[str]
+    ) -> tuple[TreeNode, SplitMetrics]:
+        """
+        Recursively build an RTP tree from a collection of text documents.
+        
+        Args:
+            X: Iterable of text documents (strings)
+            
+        Returns:
+            tuple[TreeNode, SplitMetrics]: Root node of the tree and global metrics
+        """
+        # Convert to list and store original text collection
+        text_collection = list(X)
+        
+        # Initialize global metrics
+        global_metrics = SplitMetrics()
+        
+        # Build the tree recursively
+        root = self._recurse(
+            text_collection=text_collection,
+            document_indices=list(range(len(text_collection))),
+            depth=0,
+            global_metrics=global_metrics,
+        )
+        
+        return root, global_metrics
+    
+    def _recurse(
+        self,
+        text_collection: list[str],
+        document_indices: list[int],
+        depth: int,
+        global_metrics: SplitMetrics,
+    ) -> TreeNode:
+        """
+        Recursively build the tree structure.
+        
+        Args:
+            text_collection: The full text collection (for reference)
+            document_indices: Original indices of documents in this node
+            depth: Current depth in the tree
+            global_metrics: Global metrics accumulator
+            
+        Returns:
+            TreeNode: The node for this subset of documents
+        """
+        # Get the subset of documents for this node
+        node_documents = [text_collection[i] for i in document_indices]
+        
+        # Check stopping criteria
+        should_stop = (
+            len(document_indices) < self.min_node_size or
+            depth >= self.max_depth
+        )
+        
+        if should_stop:
+            # Create leaf node
+            return TreeNode(documents=document_indices)
+        
+        # Execute RTPBuilder for current node
+        node_root, node_metrics = self.builder(node_documents, return_metrics=True)
+        
+        # Add node metrics to global metrics
+        global_metrics.llm_input_tokens += node_metrics.llm_input_tokens
+        global_metrics.llm_output_tokens += node_metrics.llm_output_tokens
+        global_metrics.nli_calls += node_metrics.nli_calls
+        global_metrics.faiss_search_time_ms += node_metrics.faiss_search_time_ms
+        global_metrics.label_propagation_time_ms += node_metrics.label_propagation_time_ms
+        global_metrics.total_time_ms += node_metrics.total_time_ms
+        global_metrics.split_ratio += node_metrics.split_ratio
+        global_metrics.medoid_nli_confidence_avg += node_metrics.medoid_nli_confidence_avg
+        global_metrics.llm_request_time += node_metrics.llm_request_time
+        global_metrics.nli_time += node_metrics.nli_time
+        
+        # Create tree node with original document indices
+        result_node = TreeNode(
+            documents=document_indices,
+            question=node_root.question,
+            metrics=node_metrics,
+        )
+        
+        # Check if split is valid
+        if node_root.left is None or node_root.right is None:
+            # No split occurred
+            return result_node
+        
+        # Check split ratio criteria
+        left_count = len(node_root.left.documents)
+        right_count = len(node_root.right.documents)
+        total_count = left_count + right_count
+        
+        if total_count == 0:
+            return result_node
+        
+        # Calculate split ratio (proportion in smaller child)
+        smaller_count = min(left_count, right_count)
+        split_ratio = smaller_count / total_count
+        
+        # Check if split ratio is within acceptable range
+        if split_ratio < self.min_split_ratio or split_ratio > self.max_split_ratio:
+            # Split ratio not acceptable, don't recurse
+            return result_node
+        
+        # Map local indices back to original indices
+        left_original_indices = [document_indices[i] for i in node_root.left.documents]
+        right_original_indices = [document_indices[i] for i in node_root.right.documents]
+        
+        # Recurse into children
+        result_node.left = self._recurse(
+            text_collection=text_collection,
+            document_indices=left_original_indices,
+            depth=depth + 1,
+            global_metrics=global_metrics,
+        )
+        
+        result_node.right = self._recurse(
+            text_collection=text_collection,
+            document_indices=right_original_indices,
+            depth=depth + 1,
+            global_metrics=global_metrics,
+        )
+        
+        return result_node
