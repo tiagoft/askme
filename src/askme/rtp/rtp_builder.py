@@ -227,7 +227,8 @@ class RTPBuilder:
         left_docs = [i for i, label in enumerate(propagated_labels) if label == 1]
         right_docs = [i for i, label in enumerate(propagated_labels) if label == 0]
         
-        # Calculate split ratio
+        # Calculate split ratio (proportion in left child)
+        # If no split occurs (all docs in one child), ratio remains 0.0
         if len(left_docs) > 0 and len(right_docs) > 0:
             metrics.split_ratio = len(left_docs) / len(text_collection)
         
