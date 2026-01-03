@@ -13,3 +13,6 @@ wheels/
 create_issues.sh
 tree_node_with_children.json
 tree_node.json
+
+# Sample/test tree files
+src/interface/sample_tree.json

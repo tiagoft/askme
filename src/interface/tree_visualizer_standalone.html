@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RTP Tree Visualizer (Standalone)</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .subtitle {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .controls {
+            padding: 30px;
+            background: #f8f9fa;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #495057;
+        }
+
+        input[type="file"],
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="file"]:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            font-family: 'Courier New', monospace;
+            min-height: 150px;
+            resize: vertical;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: white;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(245, 87, 108, 0.4);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(79, 172, 254, 0.4);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        #visualization {
+            padding: 30px;
+            overflow: auto;
+            position: relative;
+            background: white;
+        }
+
+        #tree-svg {
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            display: block;
+            margin: 0 auto;
+        }
+
+        .node-info {
+            position: absolute;
+            background: white;
+            border: 2px solid #667eea;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            max-width: 400px;
+            z-index: 1000;
+            display: none;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .node-info h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .node-info .section {
+            margin-bottom: 15px;
+        }
+
+        .node-info .section-title {
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 8px;
+            font-size: 0.95em;
+        }
+
+        .node-info .question {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            border-left: 4px solid #667eea;
+            font-style: italic;
+            color: #212529;
+        }
+
+        .node-info .documents {
+            background: #e7f3ff;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .node-info .metrics {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .metric-item {
+            background: #f8f9fa;
+            padding: 8px;
+            border-radius: 5px;
+            font-size: 0.85em;
+        }
+
+        .metric-label {
+            color: #6c757d;
+            font-size: 0.85em;
+        }
+
+        .metric-value {
+            font-weight: 700;
+            color: #212529;
+            font-size: 1.1em;
+        }
+
+        .close-info {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+            font-size: 18px;
+            line-height: 1;
+            padding: 0;
+        }
+
+        .close-info:hover {
+            background: #c82333;
+        }
+
+        .error-message, .success-message {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .legend {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            font-size: 0.9em;
+            border: 1px solid #dee2e6;
+        }
+
+        .legend-title {
+            font-weight: 700;
+            margin-bottom: 10px;
+            color: #495057;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin-right: 10px;
+            border: 2px solid #333;
+        }
+
+        .legend-line {
+            width: 30px;
+            height: 3px;
+            margin-right: 10px;
+        }
+
+        #zoom-controls {
+            position: absolute;
+            top: 180px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        #zoom-controls button {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: white;
+            border: 2px solid #667eea;
+            color: #667eea;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        #zoom-controls button:hover {
+            background: #667eea;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🌳 RTP Tree Visualizer</h1>
+            <p class="subtitle">Interactive visualization of Recursive Topic Partitioning trees</p>
+        </header>
+
+        <div class="controls">
+            <div class="control-group">
+                <label for="file-input">📁 Upload Tree JSON File:</label>
+                <input type="file" id="file-input" accept=".json">
+            </div>
+
+            <div class="control-group">
+                <label for="json-input">📝 Or paste JSON directly:</label>
+                <textarea id="json-input" placeholder='Paste your tree JSON here...'></textarea>
+            </div>
+
+            <div class="button-group">
+                <button class="btn-primary" onclick="loadFromFile()">📂 Load from File</button>
+                <button class="btn-primary" onclick="loadFromText()">📋 Load from Text</button>
+                <button class="btn-secondary" onclick="loadSampleData()">🔬 Load Sample Data</button>
+                <button class="btn-success" onclick="exportToSVG()" id="export-svg-btn" disabled>💾 Download SVG</button>
+                <button class="btn-success" onclick="exportToPNG()" id="export-png-btn" disabled>🖼️ Download PNG</button>
+            </div>
+        </div>
+
+        <div id="visualization">
+            <svg id="tree-svg" width="1200" height="800"></svg>
+            
+            <div class="legend">
+                <div class="legend-title">Legend</div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #667eea; border-color: #764ba2;"></div>
+                    <span>Internal Node</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #4facfe; border-color: #00f2fe;"></div>
+                    <span>Leaf Node</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-line" style="background: #28a745;"></div>
+                    <span>YES branch</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-line" style="background: #dc3545;"></div>
+                    <span>NO branch</span>
+                </div>
+            </div>
+
+            <div id="zoom-controls">
+                <button onclick="zoomIn()" title="Zoom In">+</button>
+                <button onclick="zoomOut()" title="Zoom Out">−</button>
+                <button onclick="resetZoom()" title="Reset Zoom">⟲</button>
+            </div>
+
+            <div class="node-info" id="node-info">
+                <button class="close-info" onclick="hideNodeInfo()">×</button>
+                <div id="node-info-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let treeData = null;
+        let currentScale = 1;
+        let translateX = 0;
+        let translateY = 0;
+        let isDragging = false;
+        let dragStartX = 0;
+        let dragStartY = 0;
+        let nodes = [];
+
+        const svg = document.getElementById('tree-svg');
+        const NS = 'http://www.w3.org/2000/svg';
+
+        // Enable dragging
+        svg.addEventListener('mousedown', (e) => {
+            if (e.target === svg || e.target.tagName === 'g' || e.target.tagName === 'path') {
+                isDragging = true;
+                dragStartX = e.clientX - translateX;
+                dragStartY = e.clientY - translateY;
+                svg.style.cursor = 'grabbing';
+            }
+        });
+
+        svg.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                translateX = e.clientX - dragStartX;
+                translateY = e.clientY - dragStartY;
+                updateTransform();
+            }
+        });
+
+        svg.addEventListener('mouseup', () => {
+            isDragging = false;
+            svg.style.cursor = 'grab';
+        });
+
+        svg.addEventListener('mouseleave', () => {
+            isDragging = false;
+            svg.style.cursor = 'grab';
+        });
+
+        // Enable zoom with mouse wheel
+        svg.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? 0.9 : 1.1;
+            currentScale *= delta;
+            currentScale = Math.max(0.1, Math.min(3, currentScale));
+            updateTransform();
+        });
+
+        function updateTransform() {
+            const g = svg.querySelector('g');
+            if (g) {
+                g.setAttribute('transform', `translate(${translateX}, ${translateY}) scale(${currentScale})`);
+            }
+        }
+
+        function zoomIn() {
+            currentScale *= 1.2;
+            currentScale = Math.min(3, currentScale);
+            updateTransform();
+        }
+
+        function zoomOut() {
+            currentScale *= 0.8;
+            currentScale = Math.max(0.1, currentScale);
+            updateTransform();
+        }
+
+        function resetZoom() {
+            currentScale = 1;
+            translateX = 0;
+            translateY = 0;
+            updateTransform();
+        }
+
+        function showMessage(message, type = 'error') {
+            const container = document.getElementById('visualization');
+            const existing = container.querySelector('.error-message, .success-message');
+            if (existing) existing.remove();
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.className = type === 'error' ? 'error-message' : 'success-message';
+            messageDiv.textContent = message;
+            container.insertBefore(messageDiv, container.firstChild);
+            setTimeout(() => messageDiv.remove(), 5000);
+        }
+
+        function loadFromFile() {
+            const fileInput = document.getElementById('file-input');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                showMessage('Please select a file first.', 'error');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const json = JSON.parse(e.target.result);
+                    treeData = json;
+                    visualizeTree(json);
+                    document.getElementById('export-svg-btn').disabled = false;
+                    document.getElementById('export-png-btn').disabled = false;
+                    showMessage('Tree loaded successfully!', 'success');
+                } catch (error) {
+                    showMessage('Error parsing JSON: ' + error.message, 'error');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function loadFromText() {
+            const jsonText = document.getElementById('json-input').value;
+            
+            if (!jsonText.trim()) {
+                showMessage('Please paste JSON data first.', 'error');
+                return;
+            }
+
+            try {
+                const json = JSON.parse(jsonText);
+                treeData = json;
+                visualizeTree(json);
+                document.getElementById('export-svg-btn').disabled = false;
+                document.getElementById('export-png-btn').disabled = false;
+                showMessage('Tree loaded successfully!', 'success');
+            } catch (error) {
+                showMessage('Error parsing JSON: ' + error.message, 'error');
+            }
+        }
+
+        function loadSampleData() {
+            const sampleTree = {
+                "documents": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+                "question": "Is this about animals?",
+                "metrics": {
+                    "nli_calls": 10,
+                    "total_time_ms": 1500,
+                    "split_ratio": 0.5,
+                    "medoid_nli_confidence_avg": 0.85
+                },
+                "left": {
+                    "documents": [0, 1, 2, 3, 4],
+                    "question": "Is this about cats?",
+                    "metrics": {
+                        "nli_calls": 5,
+                        "total_time_ms": 700,
+                        "split_ratio": 0.67
+                    },
+                    "left": {
+                        "documents": [0, 1, 2],
+                        "question": null,
+                        "metrics": null,
+                        "left": null,
+                        "right": null
+                    },
+                    "right": {
+                        "documents": [3, 4],
+                        "question": null,
+                        "metrics": null,
+                        "left": null,
+                        "right": null
+                    }
+                },
+                "right": {
+                    "documents": [5, 6, 7, 8, 9],
+                    "question": "Is this about dogs?",
+                    "metrics": {
+                        "nli_calls": 5,
+                        "total_time_ms": 800,
+                        "split_ratio": 0.33
+                    },
+                    "left": {
+                        "documents": [5, 6],
+                        "question": null,
+                        "metrics": null,
+                        "left": null,
+                        "right": null
+                    },
+                    "right": {
+                        "documents": [7, 8, 9],
+                        "question": null,
+                        "metrics": null,
+                        "left": null,
+                        "right": null
+                    }
+                }
+            };
+
+            treeData = sampleTree;
+            document.getElementById('json-input').value = JSON.stringify(sampleTree, null, 2);
+            visualizeTree(sampleTree);
+            document.getElementById('export-svg-btn').disabled = false;
+            document.getElementById('export-png-btn').disabled = false;
+            showMessage('Sample data loaded successfully!', 'success');
+        }
+
+        function calculateLayout(node, depth = 0, offset = 0) {
+            const nodeSpacing = 150;
+            const levelSpacing = 120;
+            
+            if (!node) return { width: 0, nodes: [] };
+            
+            const currentNode = {
+                data: node,
+                x: 0,
+                y: depth * levelSpacing + 50,
+                depth: depth
+            };
+            
+            const leftResult = node.left ? calculateLayout(node.left, depth + 1, offset) : { width: 0, nodes: [] };
+            const rightResult = node.right ? calculateLayout(node.right, depth + 1, offset + leftResult.width) : { width: 0, nodes: [] };
+            
+            const totalWidth = leftResult.width + rightResult.width || nodeSpacing;
+            
+            if (node.left && node.right) {
+                const leftCenter = leftResult.nodes[0].x;
+                const rightCenter = rightResult.nodes[0].x;
+                currentNode.x = (leftCenter + rightCenter) / 2;
+            } else if (node.left) {
+                currentNode.x = leftResult.nodes[0].x;
+            } else if (node.right) {
+                currentNode.x = rightResult.nodes[0].x;
+            } else {
+                currentNode.x = offset + nodeSpacing / 2;
+            }
+            
+            currentNode.left = node.left ? leftResult.nodes[0] : null;
+            currentNode.right = node.right ? rightResult.nodes[0] : null;
+            
+            return {
+                width: totalWidth,
+                nodes: [currentNode, ...leftResult.nodes, ...rightResult.nodes]
+            };
+        }
+
+        function visualizeTree(data) {
+            // Clear previous visualization
+            while (svg.firstChild && svg.firstChild.tagName !== 'defs') {
+                svg.removeChild(svg.firstChild);
+            }
+            
+            // Calculate layout
+            const layout = calculateLayout(data);
+            nodes = layout.nodes;
+            
+            // Create main group for transformations
+            const g = document.createElementNS(NS, 'g');
+            g.setAttribute('transform', 'translate(0, 0) scale(1)');
+            svg.appendChild(g);
+            
+            // Find bounds
+            let minX = Infinity, maxX = -Infinity, maxY = -Infinity;
+            nodes.forEach(n => {
+                minX = Math.min(minX, n.x);
+                maxX = Math.max(maxX, n.x);
+                maxY = Math.max(maxY, n.y);
+            });
+            
+            // Center the tree
+            const centerOffset = (1200 - (maxX - minX)) / 2 - minX;
+            nodes.forEach(n => n.x += centerOffset);
+            
+            // Draw edges
+            nodes.forEach(node => {
+                if (node.left) {
+                    drawEdge(g, node, node.left, true);
+                }
+                if (node.right) {
+                    drawEdge(g, node, node.right, false);
+                }
+            });
+            
+            // Draw nodes
+            nodes.forEach(node => {
+                drawNode(g, node);
+            });
+            
+            // Reset zoom
+            resetZoom();
+        }
+
+        function drawEdge(g, parent, child, isYes) {
+            const line = document.createElementNS(NS, 'path');
+            const midY = (parent.y + child.y) / 2;
+            const d = `M ${parent.x} ${parent.y + 15} C ${parent.x} ${midY}, ${child.x} ${midY}, ${child.x} ${child.y - 15}`;
+            line.setAttribute('d', d);
+            line.setAttribute('stroke', isYes ? '#28a745' : '#dc3545');
+            line.setAttribute('stroke-width', '2');
+            line.setAttribute('fill', 'none');
+            line.setAttribute('opacity', '0.6');
+            g.appendChild(line);
+            
+            // Add label
+            const text = document.createElementNS(NS, 'text');
+            text.setAttribute('x', (parent.x + child.x) / 2);
+            text.setAttribute('y', midY - 5);
+            text.setAttribute('text-anchor', 'middle');
+            text.setAttribute('fill', isYes ? '#28a745' : '#dc3545');
+            text.setAttribute('font-weight', 'bold');
+            text.setAttribute('font-size', '12');
+            text.textContent = isYes ? 'YES' : 'NO';
+            g.appendChild(text);
+        }
+
+        function drawNode(g, node) {
+            const isLeaf = !node.data.left && !node.data.right;
+            
+            // Draw circle
+            const circle = document.createElementNS(NS, 'circle');
+            circle.setAttribute('cx', node.x);
+            circle.setAttribute('cy', node.y);
+            circle.setAttribute('r', '15');
+            circle.setAttribute('fill', isLeaf ? '#4facfe' : '#667eea');
+            circle.setAttribute('stroke', isLeaf ? '#00f2fe' : '#764ba2');
+            circle.setAttribute('stroke-width', '3');
+            circle.setAttribute('cursor', 'pointer');
+            circle.addEventListener('click', () => showNodeInfo(node));
+            circle.addEventListener('mouseenter', () => {
+                circle.setAttribute('r', '18');
+            });
+            circle.addEventListener('mouseleave', () => {
+                circle.setAttribute('r', '15');
+            });
+            g.appendChild(circle);
+            
+            // Draw doc count label
+            const text = document.createElementNS(NS, 'text');
+            text.setAttribute('x', node.x);
+            text.setAttribute('y', node.y - 25);
+            text.setAttribute('text-anchor', 'middle');
+            text.setAttribute('font-size', '11');
+            text.setAttribute('fill', '#666');
+            text.textContent = `Docs: ${node.data.documents.length}`;
+            g.appendChild(text);
+        }
+
+        function showNodeInfo(node) {
+            const info = document.getElementById('node-info');
+            const content = document.getElementById('node-info-content');
+
+            let html = '<h3>Node Information</h3>';
+
+            // Question
+            if (node.data.question) {
+                html += '<div class="section">';
+                html += '<div class="section-title">Question:</div>';
+                html += `<div class="question">${node.data.question}</div>`;
+                html += '</div>';
+            } else {
+                html += '<div class="section">';
+                html += '<div class="section-title">Type:</div>';
+                html += '<div class="question">Leaf Node (no split)</div>';
+                html += '</div>';
+            }
+
+            // Documents
+            html += '<div class="section">';
+            html += '<div class="section-title">Documents:</div>';
+            html += `<div class="documents">Count: ${node.data.documents.length}<br>`;
+            html += `IDs: [${node.data.documents.join(', ')}]</div>`;
+            html += '</div>';
+
+            // Metrics
+            if (node.data.metrics) {
+                html += '<div class="section">';
+                html += '<div class="section-title">Split Metrics:</div>';
+                html += '<div class="metrics">';
+                
+                const metrics = node.data.metrics;
+                if (metrics.split_ratio !== undefined) {
+                    html += `<div class="metric-item">
+                        <div class="metric-label">Split Ratio</div>
+                        <div class="metric-value">${metrics.split_ratio.toFixed(2)}</div>
+                    </div>`;
+                }
+                
+                if (metrics.nli_calls !== undefined) {
+                    html += `<div class="metric-item">
+                        <div class="metric-label">NLI Calls</div>
+                        <div class="metric-value">${metrics.nli_calls}</div>
+                    </div>`;
+                }
+                
+                if (metrics.total_time_ms !== undefined) {
+                    html += `<div class="metric-item">
+                        <div class="metric-label">Time (ms)</div>
+                        <div class="metric-value">${metrics.total_time_ms.toFixed(0)}</div>
+                    </div>`;
+                }
+                
+                if (metrics.medoid_nli_confidence_avg !== undefined && metrics.medoid_nli_confidence_avg > 0) {
+                    html += `<div class="metric-item">
+                        <div class="metric-label">Avg Confidence</div>
+                        <div class="metric-value">${metrics.medoid_nli_confidence_avg.toFixed(2)}</div>
+                    </div>`;
+                }
+
+                if (metrics.llm_input_tokens !== undefined && metrics.llm_input_tokens > 0) {
+                    html += `<div class="metric-item">
+                        <div class="metric-label">LLM Input Tokens</div>
+                        <div class="metric-value">${metrics.llm_input_tokens}</div>
+                    </div>`;
+                }
+
+                if (metrics.llm_output_tokens !== undefined && metrics.llm_output_tokens > 0) {
+                    html += `<div class="metric-item">
+                        <div class="metric-label">LLM Output Tokens</div>
+                        <div class="metric-value">${metrics.llm_output_tokens}</div>
+                    </div>`;
+                }
+                
+                html += '</div></div>';
+            }
+
+            content.innerHTML = html;
+            info.style.display = 'block';
+            info.style.left = '50px';
+            info.style.top = '50px';
+        }
+
+        function hideNodeInfo() {
+            document.getElementById('node-info').style.display = 'none';
+        }
+
+        function exportToSVG() {
+            if (!treeData) {
+                showMessage('No tree data loaded', 'error');
+                return;
+            }
+
+            const svgData = new XMLSerializer().serializeToString(svg);
+            const blob = new Blob([svgData], { type: 'image/svg+xml' });
+            const url = URL.createObjectURL(blob);
+            
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'rtp_tree.svg';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            
+            showMessage('SVG downloaded successfully!', 'success');
+        }
+
+        function exportToPNG() {
+            if (!treeData) {
+                showMessage('No tree data loaded', 'error');
+                return;
+            }
+
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const svgData = new XMLSerializer().serializeToString(svg);
+            const img = new Image();
+            
+            img.onload = function() {
+                canvas.width = img.width;
+                canvas.height = img.height;
+                ctx.fillStyle = 'white';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0);
+                
+                canvas.toBlob(function(blob) {
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = 'rtp_tree.png';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+                    showMessage('PNG downloaded successfully!', 'success');
+                });
+            };
+            
+            img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+        }
+
+        // Hide node info when clicking outside
+        document.addEventListener('click', function(event) {
+            const nodeInfo = document.getElementById('node-info');
+            const svgEl = document.getElementById('tree-svg');
+            
+            if (nodeInfo.style.display === 'block' && 
+                !nodeInfo.contains(event.target) && 
+                !svgEl.contains(event.target)) {
+                hideNodeInfo();
+            }
+        });
+
+        svg.style.cursor = 'grab';
+    </script>
+</body>
+</html>
