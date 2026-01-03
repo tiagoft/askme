@@ -780,21 +780,21 @@
                     </div>`;
                 }
                 
-                if (metrics.medoid_nli_confidence_avg !== undefined && metrics.medoid_nli_confidence_avg > 0) {
+                if (metrics.medoid_nli_confidence_avg !== undefined) {
                     html += `<div class="metric-item">
                         <div class="metric-label">Avg Confidence</div>
                         <div class="metric-value">${metrics.medoid_nli_confidence_avg.toFixed(2)}</div>
                     </div>`;
                 }
 
-                if (metrics.llm_input_tokens !== undefined && metrics.llm_input_tokens > 0) {
+                if (metrics.llm_input_tokens !== undefined) {
                     html += `<div class="metric-item">
                         <div class="metric-label">LLM Input Tokens</div>
                         <div class="metric-value">${metrics.llm_input_tokens}</div>
                     </div>`;
                 }
 
-                if (metrics.llm_output_tokens !== undefined && metrics.llm_output_tokens > 0) {
+                if (metrics.llm_output_tokens !== undefined) {
                     html += `<div class="metric-item">
                         <div class="metric-label">LLM Output Tokens</div>
                         <div class="metric-value">${metrics.llm_output_tokens}</div>
@@ -866,7 +866,10 @@
                 });
             };
             
-            img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+            img.src = 'data:image/svg+xml;base64,' + btoa(encodeURIComponent(svgData).replace(/%([0-9A-F]{2})/g,
+                function(match, p1) {
+                    return String.fromCharCode('0x' + p1);
+                }));
         }
 
         // Hide node info when clicking outside
