@@ -161,12 +161,14 @@ class RTPBuilder:
         medoids = [text_collection[idx] for idx in medoid_indices]
         
         # Step 3: Generate hypothesis using LLM
+        llm_start = time.time()
         response = makequestion.make_a_question_about_collection(
             collection=medoids,
             model=self.llm_model,
             retries=5,
         )
         hypothesis = response.output.hypothesis
+        metrics.llm_request_time = (time.time() - llm_start) * 1000
         
         # Track LLM tokens
         metrics.llm_input_tokens = response.usage().input_tokens
@@ -185,6 +187,7 @@ class RTPBuilder:
         
         device = 'cuda' if self.use_gpu else 'cpu'
         nli_confidences = []
+        nli_start = time.time()
         for doc_index in doc_indices:
             document = text_collection[doc_index]
             pooled_results = check_entailment.pool_nli_scores(
@@ -201,6 +204,7 @@ class RTPBuilder:
             answers[doc_index] = 1 if entails else 0
             nli_confidences.append(P_entailment)
             metrics.nli_calls += 1
+        metrics.nli_time = (time.time() - nli_start) * 1000
         
         # Calculate average medoid NLI confidence
         if nli_confidences:

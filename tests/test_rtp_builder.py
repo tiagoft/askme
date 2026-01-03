@@ -219,6 +219,9 @@ def test_rtp_builder_returns_metrics_when_requested():
     assert 0.0 <= metrics.split_ratio <= 1.0
     # medoid_nli_confidence_avg should be between 0 and 1
     assert 0.0 <= metrics.medoid_nli_confidence_avg <= 1.0
+    # New timing metrics should be populated
+    assert metrics.llm_request_time > 0.0
+    assert metrics.nli_time > 0.0
 
 
 def test_rtp_builder_default_no_metrics():
@@ -243,6 +246,8 @@ def test_split_metrics_can_be_serialized():
         total_time_ms=500.0,
         split_ratio=0.6,
         medoid_nli_confidence_avg=0.85,
+        llm_request_time=150.0,
+        nli_time=100.0,
     )
     
     # Should be able to serialize to JSON
@@ -267,6 +272,8 @@ def test_split_metrics_default_values():
     assert metrics.total_time_ms == 0.0
     assert metrics.split_ratio == 0.0
     assert metrics.medoid_nli_confidence_avg == 0.0
+    assert metrics.llm_request_time == 0.0
+    assert metrics.nli_time == 0.0
 
 
 def test_rtp_builder_metrics_timing_consistency():

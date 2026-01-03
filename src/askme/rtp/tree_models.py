@@ -33,6 +33,8 @@ class SplitMetrics(BaseModel):
         total_time_ms: Total execution time (in milliseconds)
         split_ratio: Proportion of documents in the left child (0.0 if no split occurs)
         medoid_nli_confidence_avg: Average NLI confidence on selected medoid documents
+        llm_request_time: Time (in milliseconds) spent on LLM calls
+        nli_time: Time (in milliseconds) spent on NLI calls
     """
     llm_input_tokens: int = 0
     llm_output_tokens: int = 0
@@ -42,3 +44,5 @@ class SplitMetrics(BaseModel):
     total_time_ms: float = 0.0
     split_ratio: float = 0.0
     medoid_nli_confidence_avg: float = 0.0
+    llm_request_time: float = 0.0
+    nli_time: float = 0.0
