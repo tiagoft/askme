@@ -783,6 +783,20 @@
                     html += '</div>';
                 }
                 
+                if (d.data.metrics.llm_input_tokens !== undefined) {
+                    html += '<div class="metric-item">';
+                    html += '<div class="metric-label">LLM Input Tokens</div>';
+                    html += `<div class="metric-value">${d.data.metrics.llm_input_tokens}</div>`;
+                    html += '</div>';
+                }
+
+                if (d.data.metrics.llm_output_tokens !== undefined) {
+                    html += '<div class="metric-item">';
+                    html += '<div class="metric-label">LLM Output Tokens</div>';
+                    html += `<div class="metric-value">${d.data.metrics.llm_output_tokens}</div>`;
+                    html += '</div>';
+                }
+                
                 html += '</div>';
                 html += '</div>';
             }
