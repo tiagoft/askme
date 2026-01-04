@@ -91,16 +91,15 @@ def calculate_all_leaf_purities(root: TreeNode, labels: List[int]) -> Dict[int, 
         labels: List of labels where labels[i] is the label for document i
         
     Returns:
-        Dictionary mapping leaf node id (using first document index as identifier)
-        to its purity score
+        Dictionary mapping leaf node id to its purity score
     """
     leaves = get_all_leaves(root)
     purities = {}
     
     for leaf in leaves:
         if leaf.documents:
-            # Use the first document index as a unique identifier for this leaf
-            leaf_id = leaf.documents[0]
+            # Use Python's id() for unique identification of each leaf node object
+            leaf_id = id(leaf)
             purities[leaf_id] = calculate_node_purity(leaf, labels)
     
     return purities

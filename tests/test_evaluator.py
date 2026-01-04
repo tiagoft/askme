@@ -337,9 +337,9 @@ def test_evaluate_exploratory_power_single_leaf():
     # Purity = 1 - 4/9 = 5/9 ≈ 0.556
     assert abs(results['average_leaf_purity'] - (5/9)) < 0.001
     
-    # No class is isolated (both appear in the same leaf)
-    assert results['isolation_depths'][0] is None or results['isolation_depths'][0] == 0
-    assert results['isolation_depths'][1] is None or results['isolation_depths'][1] == 0
+    # No class is isolated (both appear in the same leaf, which is impure)
+    assert results['isolation_depths'][0] is None
+    assert results['isolation_depths'][1] is None
 
 
 def test_node_purity_single_document():

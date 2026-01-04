@@ -78,7 +78,7 @@ def main():
     
     print("\nLeaf Purities:")
     for leaf_id, purity in results['leaf_purities'].items():
-        print(f"  Leaf starting with document {leaf_id}: {purity:.4f}")
+        print(f"  Leaf {leaf_id}: {purity:.4f}")
     
     print(f"\nAverage Leaf Purity: {results['average_leaf_purity']:.4f}")
     print("  (1.0 = perfectly pure, 0.0 = completely impure)")
