@@ -5,10 +5,11 @@ This module provides functionality to cluster documents using HDBSCAN and
 convert the resulting hierarchy into a TreeNode structure for evaluation.
 """
 
-from typing import List, Tuple
-import numpy as np
-from sklearn.cluster import HDBSCAN
-from sentence_transformers import SentenceTransformer
+from typing import List, Tuple, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from sklearn.cluster import HDBSCAN
+    from sentence_transformers import SentenceTransformer
 
 from .tree_models import TreeNode
 
@@ -17,7 +18,7 @@ def vectorize_texts(
     texts: List[str],
     model_name: str = "all-MiniLM-L6-v2",
     device: str = "cpu",
-) -> np.ndarray:
+):
     """
     Vectorize a list of texts using a sentence transformer model.
     
@@ -29,13 +30,21 @@ def vectorize_texts(
     Returns:
         Array of embeddings with shape (n_texts, embedding_dim)
     """
+    try:
+        from sentence_transformers import SentenceTransformer
+    except ImportError:
+        raise ImportError(
+            "sentence-transformers is required for text vectorization. "
+            "Install it with: pip install sentence-transformers"
+        )
+    
     model = SentenceTransformer(model_name, device=device)
     embeddings = model.encode(texts, show_progress_bar=True)
     return embeddings
 
 
 def build_tree_from_hdbscan(
-    clusterer: HDBSCAN,
+    clusterer,
     n_samples: int,
 ) -> TreeNode:
     """
@@ -52,6 +61,8 @@ def build_tree_from_hdbscan(
     Returns:
         Root TreeNode of the constructed tree
     """
+    import numpy as np
+    
     # Get cluster labels
     labels = clusterer.labels_
     
@@ -109,7 +120,7 @@ def build_tree_from_hdbscan(
 
 def _split_node_by_clusters(
     node: TreeNode,
-    labels: np.ndarray,
+    labels,
     clusters: set,
 ) -> TreeNode:
     """
@@ -117,12 +128,13 @@ def _split_node_by_clusters(
     
     Args:
         node: TreeNode to split
-        labels: Cluster labels for all documents
+        labels: Cluster labels for all documents (numpy array or array-like)
         clusters: Set of cluster IDs in this node
         
     Returns:
         Updated TreeNode with children
     """
+    import numpy as np
     if len(clusters) <= 1:
         return node
     
@@ -177,7 +189,7 @@ def run_hdbscan_baseline(
     min_cluster_size: int = 5,
     min_samples: int = 1,
     device: str = "cpu",
-) -> Tuple[TreeNode, np.ndarray]:
+):
     """
     Run HDBSCAN clustering on a text dataset and return a TreeNode structure.
     
@@ -191,6 +203,14 @@ def run_hdbscan_baseline(
     Returns:
         Tuple of (root TreeNode, embeddings array)
     """
+    try:
+        from sklearn.cluster import HDBSCAN
+    except ImportError:
+        raise ImportError(
+            "scikit-learn is required for HDBSCAN clustering. "
+            "Install it with: pip install scikit-learn"
+        )
+    
     # Vectorize texts
     embeddings = vectorize_texts(texts, model_name=model_name, device=device)
     
