@@ -1,4 +1,4 @@
-"""Standalone tests for tree depth calculation that don't require HDBSCAN imports."""
+"""Standalone tests for tree depth calculation."""
 
 import pytest
 import sys
@@ -8,28 +8,7 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from askme.rtp.tree_models import TreeNode
-
-
-def calculate_tree_depth(root):
-    """
-    Calculate the maximum depth of a tree.
-    
-    Args:
-        root: Root TreeNode of the tree
-        
-    Returns:
-        Maximum depth of the tree (root has depth 0)
-    """
-    if root is None:
-        return -1
-    
-    if root.left is None and root.right is None:
-        return 0
-    
-    left_depth = calculate_tree_depth(root.left) if root.left else -1
-    right_depth = calculate_tree_depth(root.right) if root.right else -1
-    
-    return 1 + max(left_depth, right_depth)
+from askme.rtp.hdbscan_baseline import calculate_tree_depth
 
 
 def test_calculate_tree_depth_single_node():

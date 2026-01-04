@@ -100,7 +100,7 @@ def test_build_tree_from_hdbscan_mock_single_cluster():
     # Should create a root node with all documents
     assert tree.documents == list(range(5))
     # With only one cluster, should not split
-    assert tree.left is None or tree.right is None or (tree.left is not None and tree.right is not None)
+    assert tree.left is None and tree.right is None
 
 
 def test_build_tree_from_hdbscan_mock_two_clusters():
