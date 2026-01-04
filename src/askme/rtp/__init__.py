@@ -27,6 +27,12 @@ def __getattr__(name):
     elif name == 'evaluate_exploratory_power':
         from .evaluator import evaluate_exploratory_power
         return evaluate_exploratory_power
+    elif name == 'run_hdbscan_baseline':
+        from .hdbscan_baseline import run_hdbscan_baseline
+        return run_hdbscan_baseline
+    elif name == 'calculate_tree_depth':
+        from .hdbscan_baseline import calculate_tree_depth
+        return calculate_tree_depth
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
 __all__ = [
@@ -41,4 +47,6 @@ __all__ = [
     'calculate_isolation_depth',
     'calculate_all_isolation_depths',
     'evaluate_exploratory_power',
+    'run_hdbscan_baseline',
+    'calculate_tree_depth',
 ]
