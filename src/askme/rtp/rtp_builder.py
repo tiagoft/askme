@@ -40,6 +40,9 @@ class RTPBuilder:
         alpha: Alpha parameter for label propagation
         max_iter: Maximum iterations for label propagation
         tol: Tolerance for label propagation convergence
+        max_retries: Maximum number of retries if split ratio is bad
+        min_split_ratio: Minimum acceptable split ratio (None if no check)
+        max_split_ratio: Maximum acceptable split ratio (None if no check)
     """
     
     def __init__(
@@ -56,6 +59,9 @@ class RTPBuilder:
         alpha: float = 0.99,
         max_iter: int = 100,
         tol: float = 1e-3,
+        max_retries: int = 3,
+        min_split_ratio: Optional[float] = None,
+        max_split_ratio: Optional[float] = None,
     ):
         """
         Initialize the RTPBuilder with all necessary models.
@@ -73,6 +79,11 @@ class RTPBuilder:
             alpha: Alpha parameter for label propagation (0 < alpha < 1)
             max_iter: Maximum iterations for label propagation
             tol: Tolerance for label propagation convergence
+            max_retries: Maximum number of retries if split ratio is bad (default: 3)
+            min_split_ratio: Minimum acceptable split ratio (proportion in smaller child).
+                           If None, no minimum check is performed.
+            max_split_ratio: Maximum acceptable split ratio (proportion in smaller child).
+                           If None, no maximum check is performed.
         """
         self.use_gpu = use_gpu
         self.embedding_model_name = embedding_model_name
@@ -86,6 +97,9 @@ class RTPBuilder:
         self.alpha = alpha
         self.max_iter = max_iter
         self.tol = tol
+        self.max_retries = max_retries
+        self.min_split_ratio = min_split_ratio
+        self.max_split_ratio = max_split_ratio
         
         # Determine device
         device = 'cuda' if use_gpu else 'cpu'
@@ -160,90 +174,121 @@ class RTPBuilder:
         
         medoids = [text_collection[idx] for idx in medoid_indices]
         
-        # Step 3: Generate hypothesis using LLM
-        llm_start = time.time()
-        response = makequestion.make_a_question_about_collection(
-            collection=medoids,
-            model=self.llm_model,
-            retries=5,
-        )
-        hypothesis = response.output.hypothesis
-        metrics.llm_request_time = (time.time() - llm_start) * 1000
+        # Retry loop for generating a good question
+        # The loop attempts to generate a question that leads to an acceptable split ratio
+        # If min_split_ratio or max_split_ratio is None, no validation occurs
+        blacklist = []
+        hypothesis = None
+        propagated_labels = None
+        left_docs = []
+        right_docs = []
         
-        # Track LLM tokens
-        metrics.llm_input_tokens = response.usage().input_tokens
-        metrics.llm_output_tokens = response.usage().output_tokens
-        
-        # Step 4: Use NLI to answer the question for selected documents
-        
-        if self.n_documents_to_answer == 'same':
-            n_docs_to_label = n_clusters
-            doc_indices = medoid_indices
-        else:
-            if isinstance(self.n_documents_to_answer, float):
-                n_docs_to_label = int(self.n_documents_to_answer * len(text_collection))
+        for attempt in range(self.max_retries + 1):
+            # Step 3: Generate hypothesis using LLM
+            llm_start = time.time()
+            response = makequestion.make_a_question_about_collection(
+                collection=medoids,
+                model=self.llm_model,
+                retries=5,
+                blacklist=blacklist,
+            )
+            hypothesis = response.output.hypothesis
+            metrics.llm_request_time += (time.time() - llm_start) * 1000
+            
+            # Track LLM tokens
+            metrics.llm_input_tokens += response.usage().input_tokens
+            metrics.llm_output_tokens += response.usage().output_tokens
+            
+            # Step 4: Use NLI to answer the question for selected documents
+            
+            if self.n_documents_to_answer == 'same':
+                n_docs_to_label = n_clusters
+                doc_indices = medoid_indices
             else:
-                n_docs_to_label = int(self.n_documents_to_answer)
-            n_docs_to_label = min(n_docs_to_label, len(text_collection))
-            doc_indices = kmeans_with_faiss(
-                faiss_index=faiss_index,
-                X=embeddings,
-                n_clusters=n_docs_to_label,
+                if isinstance(self.n_documents_to_answer, float):
+                    n_docs_to_label = int(self.n_documents_to_answer * len(text_collection))
+                else:
+                    n_docs_to_label = int(self.n_documents_to_answer)
+                n_docs_to_label = min(n_docs_to_label, len(text_collection))
+                doc_indices = kmeans_with_faiss(
+                    faiss_index=faiss_index,
+                    X=embeddings,
+                    n_clusters=n_docs_to_label,
+                )
+            
+            # Initialize labels as unlabeled (-1)
+            answers = -np.ones((len(text_collection),), dtype=object)
+            
+            device = 'cuda' if self.use_gpu else 'cpu'
+            nli_confidences = []
+            nli_start = time.time()
+            for doc_index in doc_indices:
+                document = text_collection[doc_index]
+                pooled_results = check_entailment.pool_nli_scores(
+                    check_fn=check_entailment.check_entailment_nli,
+                    premise=document,
+                    hypothesis=hypothesis,
+                    chunk_size=200,
+                    overlap=20,
+                    model=self.nli_model,
+                    tokenizer=self.nli_tokenizer,
+                    device=device,
+                )
+                entails, entailment_score, contradiction_score, P_entailment = pooled_results
+                answers[doc_index] = 1 if entails else 0
+                nli_confidences.append(P_entailment)
+                metrics.nli_calls += 1
+            metrics.nli_time += (time.time() - nli_start) * 1000
+            
+            # Calculate average medoid NLI confidence
+            # Note: This is overwritten on each retry to reflect the final hypothesis's confidence
+            if nli_confidences:
+                metrics.medoid_nli_confidence_avg = sum(nli_confidences) / len(nli_confidences)
+            
+            # Step 5: Propagate labels
+            label_prop_start = time.time()
+            indices, distances = make_knn_graph(
+                np.array(embeddings).astype('float32'),
+                faiss_index,
+                n_neighbors=self.knn_neighbors
             )
-        
-        # Initialize labels as unlabeled (-1)
-        answers = -np.ones((len(text_collection),), dtype=object)
-        
-        device = 'cuda' if self.use_gpu else 'cpu'
-        nli_confidences = []
-        nli_start = time.time()
-        for doc_index in doc_indices:
-            document = text_collection[doc_index]
-            pooled_results = check_entailment.pool_nli_scores(
-                check_fn=check_entailment.check_entailment_nli,
-                premise=document,
-                hypothesis=hypothesis,
-                chunk_size=200,
-                overlap=20,
-                model=self.nli_model,
-                tokenizer=self.nli_tokenizer,
-                device=device,
+            W = sparse_affinity(indices, distances, sigma=1.0)
+            propagated_labels = propagate_labels(
+                W, answers,
+                alpha=self.alpha,
+                max_iter=self.max_iter,
+                tol=self.tol
             )
-            entails, entailment_score, contradiction_score, P_entailment = pooled_results
-            answers[doc_index] = 1 if entails else 0
-            nli_confidences.append(P_entailment)
-            metrics.nli_calls += 1
-        metrics.nli_time = (time.time() - nli_start) * 1000
-        
-        # Calculate average medoid NLI confidence
-        if nli_confidences:
-            metrics.medoid_nli_confidence_avg = sum(nli_confidences) / len(nli_confidences)
-        
-        # Step 5: Propagate labels
-        label_prop_start = time.time()
-        indices, distances = make_knn_graph(
-            np.array(embeddings).astype('float32'),
-            faiss_index,
-            n_neighbors=self.knn_neighbors
-        )
-        W = sparse_affinity(indices, distances, sigma=1.0)
-        propagated_labels = propagate_labels(
-            W, answers,
-            alpha=self.alpha,
-            max_iter=self.max_iter,
-            tol=self.tol
-        )
-        metrics.label_propagation_time_ms = (time.time() - label_prop_start) * 1000
-        
-        # Step 6: Build TreeNode based on propagated labels
-        # Documents where label == 1 go to left child, label == 0 go to right child
-        left_docs = [i for i, label in enumerate(propagated_labels) if label == 1]
-        right_docs = [i for i, label in enumerate(propagated_labels) if label == 0]
-        
-        # Calculate split ratio (proportion in left child)
-        # If no split occurs (all docs in one child), ratio remains 0.0
-        if len(left_docs) > 0 and len(right_docs) > 0:
-            metrics.split_ratio = len(left_docs) / len(text_collection)
+            metrics.label_propagation_time_ms += (time.time() - label_prop_start) * 1000
+            
+            # Step 6: Build TreeNode based on propagated labels
+            # Documents where label == 1 go to left child, label == 0 go to right child
+            left_docs = [i for i, label in enumerate(propagated_labels) if label == 1]
+            right_docs = [i for i, label in enumerate(propagated_labels) if label == 0]
+            
+            # Check split ratio if split occurred
+            split_is_valid = True
+            if len(left_docs) > 0 and len(right_docs) > 0:
+                # Calculate split ratio (proportion in smaller child)
+                smaller_count = min(len(left_docs), len(right_docs))
+                split_ratio = smaller_count / len(text_collection)
+                
+                # Check if split ratio is within acceptable range
+                if self.min_split_ratio is not None and split_ratio < self.min_split_ratio:
+                    split_is_valid = False
+                if self.max_split_ratio is not None and split_ratio > self.max_split_ratio:
+                    split_is_valid = False
+                
+                # Store split ratio for the last attempt
+                if attempt == self.max_retries or split_is_valid:
+                    metrics.split_ratio = len(left_docs) / len(text_collection)
+            
+            # If split is valid or we've exhausted retries, stop
+            if split_is_valid or attempt == self.max_retries:
+                break
+            
+            # Otherwise, add this hypothesis to the blacklist and retry
+            blacklist.append(hypothesis)
         
         # Create tree node
         root = TreeNode(

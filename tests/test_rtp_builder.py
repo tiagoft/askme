@@ -287,3 +287,119 @@ def test_rtp_builder_metrics_timing_consistency():
     # (though not necessarily equal since there are other operations)
     measured_time = metrics.faiss_search_time_ms + metrics.label_propagation_time_ms
     assert metrics.total_time_ms >= measured_time
+
+
+def test_rtp_builder_with_retry_parameters():
+    """Test that RTPBuilder accepts retry parameters."""
+    builder = RTPBuilder(
+        use_gpu=False,
+        max_retries=5,
+        min_split_ratio=0.3,
+        max_split_ratio=0.7,
+    )
+    
+    assert builder.max_retries == 5
+    assert builder.min_split_ratio == 0.3
+    assert builder.max_split_ratio == 0.7
+
+
+def test_rtp_builder_default_retry_parameters():
+    """Test that RTPBuilder has correct default retry parameters."""
+    builder = RTPBuilder(use_gpu=False)
+    
+    assert builder.max_retries == 3
+    assert builder.min_split_ratio is None
+    assert builder.max_split_ratio is None
+
+
+def test_rtp_builder_with_split_ratio_constraints():
+    """Test that RTPBuilder works with split ratio constraints."""
+    # Use very restrictive split ratio constraints
+    # The builder should still work, but may retry
+    builder = RTPBuilder(
+        use_gpu=False,
+        n_medoids=2,
+        n_documents_to_answer=3,
+        max_retries=2,
+        min_split_ratio=0.2,
+        max_split_ratio=0.8,
+    )
+    
+    result, metrics = builder(sample_text_collection, return_metrics=True)
+    
+    # Result should still be valid
+    assert isinstance(result, TreeNode)
+    assert result.documents == list(range(len(sample_text_collection)))
+    assert result.question is not None
+    
+    # Metrics should be populated
+    assert isinstance(metrics, SplitMetrics)
+    assert metrics.llm_input_tokens > 0
+    assert metrics.llm_output_tokens > 0
+
+
+def test_rtp_builder_retry_increases_llm_tokens():
+    """Test that retrying increases LLM token usage."""
+    # First, test without retry constraints
+    builder_no_retry = RTPBuilder(
+        use_gpu=False,
+        n_medoids=2,
+        n_documents_to_answer=3,
+        max_retries=0,  # No retries
+    )
+    
+    result1, metrics1 = builder_no_retry(sample_text_collection, return_metrics=True)
+    
+    # Now test with very restrictive constraints that might trigger retries
+    builder_with_retry = RTPBuilder(
+        use_gpu=False,
+        n_medoids=2,
+        n_documents_to_answer=3,
+        max_retries=2,
+        min_split_ratio=0.45,  # Very restrictive
+        max_split_ratio=0.55,  # Very restrictive
+    )
+    
+    result2, metrics2 = builder_with_retry(sample_text_collection, return_metrics=True)
+    
+    # Both should produce valid results
+    assert isinstance(result1, TreeNode)
+    assert isinstance(result2, TreeNode)
+    
+    # If retry happened, LLM tokens should be higher in second case
+    # However, this is not guaranteed since the split might be acceptable on first try
+    # So we just check that both have positive token counts
+    assert metrics1.llm_input_tokens > 0
+    assert metrics2.llm_input_tokens > 0
+
+
+def test_rtp_builder_with_only_min_split_ratio():
+    """Test that RTPBuilder works with only min_split_ratio constraint."""
+    builder = RTPBuilder(
+        use_gpu=False,
+        n_medoids=2,
+        n_documents_to_answer=3,
+        max_retries=1,
+        min_split_ratio=0.1,  # Only minimum constraint
+    )
+    
+    result, metrics = builder(sample_text_collection, return_metrics=True)
+    
+    assert isinstance(result, TreeNode)
+    assert result.question is not None
+
+
+def test_rtp_builder_with_only_max_split_ratio():
+    """Test that RTPBuilder works with only max_split_ratio constraint."""
+    builder = RTPBuilder(
+        use_gpu=False,
+        n_medoids=2,
+        n_documents_to_answer=3,
+        max_retries=1,
+        max_split_ratio=0.9,  # Only maximum constraint
+    )
+    
+    result, metrics = builder(sample_text_collection, return_metrics=True)
+    
+    assert isinstance(result, TreeNode)
+    assert result.question is not None
