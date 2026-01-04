@@ -11,8 +11,10 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 from askme.rtp.tree_models import TreeNode
 from askme.rtp.evaluator import (
     calculate_node_purity,
+    calculate_node_entropy,
     get_all_leaves,
     calculate_all_leaf_purities,
+    calculate_all_leaf_entropies,
     calculate_isolation_depth,
     calculate_all_isolation_depths,
     evaluate_exploratory_power,
@@ -37,8 +39,9 @@ def test_calculate_node_purity_impure_node():
     
     purity = calculate_node_purity(node, labels)
     
-    # With 2 classes evenly distributed: Gini = 1 - (0.5^2 + 0.5^2) = 0.5
-    # Purity = 1 - 0.5 = 0.5
+    # With 2 classes evenly distributed (2 of class 0, 2 of class 1)
+    # Most common class has proportion 2/4 = 0.5
+    # Purity = proportion of most common class = 0.5
     assert purity == 0.5
 
 
@@ -49,9 +52,9 @@ def test_calculate_node_purity_mixed_node():
     
     purity = calculate_node_purity(node, labels)
     
-    # Gini = 1 - ((3/5)^2 + (2/5)^2) = 1 - (0.36 + 0.16) = 0.48
-    # Purity = 1 - 0.48 = 0.52
-    assert abs(purity - 0.52) < 0.001
+    # Most common class (0) has proportion 3/5 = 0.6
+    # Purity = 0.6
+    assert abs(purity - 0.6) < 0.001
 
 
 def test_calculate_node_purity_three_classes():
@@ -61,8 +64,8 @@ def test_calculate_node_purity_three_classes():
     
     purity = calculate_node_purity(node, labels)
     
-    # Gini = 1 - (1/3)^2 * 3 = 1 - 1/3 = 2/3 ≈ 0.6667
-    # Purity = 1 - 2/3 = 1/3 ≈ 0.3333
+    # All classes equally common, each with proportion 2/6 = 1/3
+    # Purity = 1/3 ≈ 0.3333
     assert abs(purity - (1/3)) < 0.001
 
 
@@ -333,9 +336,9 @@ def test_evaluate_exploratory_power_single_leaf():
     assert results['num_leaves'] == 1
     assert len(results['leaf_purities']) == 1
     
-    # Gini for [0, 0, 1]: 1 - ((2/3)^2 + (1/3)^2) = 1 - (4/9 + 1/9) = 4/9
-    # Purity = 1 - 4/9 = 5/9 ≈ 0.556
-    assert abs(results['average_leaf_purity'] - (5/9)) < 0.001
+    # Most common class (0) has proportion 2/3
+    # Purity = 2/3 ≈ 0.667
+    assert abs(results['average_leaf_purity'] - (2/3)) < 0.001
     
     # No class is isolated (both appear in the same leaf, which is impure)
     assert results['isolation_depths'][0] is None
@@ -350,3 +353,86 @@ def test_node_purity_single_document():
     purity = calculate_node_purity(node, labels)
     
     assert purity == 1.0  # Single document is perfectly pure
+
+
+def test_calculate_node_entropy_pure_node():
+    """Test entropy calculation for a perfectly pure node (all same class)."""
+    node = TreeNode(documents=[0, 1, 2])
+    labels = [0, 0, 0]  # All documents have the same label
+    
+    entropy = calculate_node_entropy(node, labels)
+    
+    # Perfect purity means zero entropy
+    assert entropy == 0.0
+
+
+def test_calculate_node_entropy_two_classes_even():
+    """Test entropy calculation for two evenly distributed classes."""
+    node = TreeNode(documents=[0, 1, 2, 3])
+    labels = [0, 1, 0, 1]  # Two classes, evenly distributed
+    
+    entropy = calculate_node_entropy(node, labels)
+    
+    # With 2 classes evenly distributed: entropy = -0.5*log2(0.5) - 0.5*log2(0.5) = 1.0
+    assert abs(entropy - 1.0) < 0.001
+
+
+def test_calculate_node_entropy_mixed_node():
+    """Test entropy calculation for a mixed node."""
+    import math
+    node = TreeNode(documents=[0, 1, 2, 3, 4])
+    labels = [0, 0, 0, 1, 1]  # 3 of class 0, 2 of class 1
+    
+    entropy = calculate_node_entropy(node, labels)
+    
+    # Entropy = -(3/5)*log2(3/5) - (2/5)*log2(2/5)
+    p0 = 3/5
+    p1 = 2/5
+    expected = -(p0 * math.log2(p0) + p1 * math.log2(p1))
+    assert abs(entropy - expected) < 0.001
+
+
+def test_calculate_node_entropy_three_classes():
+    """Test entropy calculation with three evenly distributed classes."""
+    import math
+    node = TreeNode(documents=[0, 1, 2, 3, 4, 5])
+    labels = [0, 0, 1, 1, 2, 2]  # Three classes, evenly distributed
+    
+    entropy = calculate_node_entropy(node, labels)
+    
+    # Entropy = -3 * (1/3)*log2(1/3) = log2(3)
+    expected = math.log2(3)
+    assert abs(entropy - expected) < 0.001
+
+
+def test_calculate_node_entropy_empty_node_raises_error():
+    """Test that calculating entropy on an empty node raises an error."""
+    node = TreeNode(documents=[])
+    labels = []
+    
+    with pytest.raises(ValueError, match="Node has no documents"):
+        calculate_node_entropy(node, labels)
+
+
+def test_evaluate_exploratory_power_includes_entropy():
+    """Test that evaluate_exploratory_power includes entropy metrics."""
+    root = TreeNode(documents=[0, 1, 2, 3, 4, 5])
+    left_child = TreeNode(documents=[0, 1, 2])
+    right_child = TreeNode(documents=[3, 4, 5])
+    
+    root.left = left_child
+    root.right = right_child
+    
+    # Left child: all class 0, right child: all class 1
+    labels = [0, 0, 0, 1, 1, 1]
+    
+    results = evaluate_exploratory_power(root, labels)
+    
+    # Check structure includes entropy
+    assert 'leaf_entropies' in results
+    assert 'average_leaf_entropy' in results
+    
+    # Both leaves should be pure, so entropy should be 0
+    assert len(results['leaf_entropies']) == 2
+    assert results['average_leaf_entropy'] == 0.0
+    assert all(entropy == 0.0 for entropy in results['leaf_entropies'].values())

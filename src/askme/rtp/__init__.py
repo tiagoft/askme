@@ -9,9 +9,15 @@ def __getattr__(name):
     elif name == 'calculate_node_purity':
         from .evaluator import calculate_node_purity
         return calculate_node_purity
+    elif name == 'calculate_node_entropy':
+        from .evaluator import calculate_node_entropy
+        return calculate_node_entropy
     elif name == 'calculate_all_leaf_purities':
         from .evaluator import calculate_all_leaf_purities
         return calculate_all_leaf_purities
+    elif name == 'calculate_all_leaf_entropies':
+        from .evaluator import calculate_all_leaf_entropies
+        return calculate_all_leaf_entropies
     elif name == 'calculate_isolation_depth':
         from .evaluator import calculate_isolation_depth
         return calculate_isolation_depth
@@ -29,7 +35,9 @@ __all__ = [
     'TreeNode',
     'SplitMetrics',
     'calculate_node_purity',
+    'calculate_node_entropy',
     'calculate_all_leaf_purities',
+    'calculate_all_leaf_entropies',
     'calculate_isolation_depth',
     'calculate_all_isolation_depths',
     'evaluate_exploratory_power',

@@ -81,7 +81,14 @@ def main():
         print(f"  Leaf {leaf_id}: {purity:.4f}")
     
     print(f"\nAverage Leaf Purity: {results['average_leaf_purity']:.4f}")
-    print("  (1.0 = perfectly pure, 0.0 = completely impure)")
+    print("  (1.0 = perfectly pure, lower = more mixed)")
+    
+    print("\nLeaf Entropies:")
+    for leaf_id, entropy in results['leaf_entropies'].items():
+        print(f"  Leaf {leaf_id}: {entropy:.4f}")
+    
+    print(f"\nAverage Leaf Entropy: {results['average_leaf_entropy']:.4f}")
+    print("  (0.0 = perfectly pure, higher = more mixed)")
     
     print("\nIsolation Depths:")
     for class_label, depth in results['isolation_depths'].items():
@@ -95,9 +102,9 @@ def main():
     print("=" * 60)
     print("""
 The tree successfully separates the documents by class:
-- Class 0 (cats) is isolated in the left-left leaf with perfect purity (1.0)
-- Class 1 (dogs) is isolated in the left-right leaf with perfect purity (1.0)
-- Class 2 (other animals) is isolated in the right leaf with perfect purity (1.0)
+- Class 0 (cats) is isolated in the left-left leaf with perfect purity (1.0) and zero entropy (0.0)
+- Class 1 (dogs) is isolated in the left-right leaf with perfect purity (1.0) and zero entropy (0.0)
+- Class 2 (other animals) is isolated in the right leaf with perfect purity (1.0) and zero entropy (0.0)
 
 All classes are isolated at depth ≤ 2, indicating that the tree structure
 effectively organizes the documents by their labels.
