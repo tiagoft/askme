@@ -31,13 +31,14 @@ The script performs the following tasks:
 ### Requirements
 
 The script requires the following dependencies (specified in `pyproject.toml`):
-- `datasets` (HuggingFace datasets library)
-- `sentence-transformers`
-- `faiss-gpu-cu12` or `faiss-cpu`
-- `scikit-learn`
-- `numpy`
-- `pydantic-ai` (for LLM calls)
-- `transformers` (for NLI models)
+- `datasets>=2.0.0` (HuggingFace datasets library for loading AG News)
+- `sentence-transformers>=5.2.0` (for text embeddings)
+- `faiss-gpu-cu12>=1.13.1` (for efficient similarity search)
+- `scikit-learn>=1.3.0` (includes HDBSCAN clustering)
+- `pydantic-ai>=1.25.1` (for LLM calls)
+- `transformers>=4.57.3` (for NLI models)
+- `torch>=2.9.1` (deep learning framework)
+- `numpy` (transitive dependency, used for array operations)
 
 ### Usage
 
