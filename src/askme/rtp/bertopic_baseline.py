@@ -7,6 +7,7 @@ structure for evaluation.
 """
 
 from typing import List, Tuple, TYPE_CHECKING
+import numpy as np
 
 if TYPE_CHECKING:
     from bertopic import BERTopic
@@ -63,8 +64,6 @@ def build_tree_from_bertopic_hierarchy(
     Returns:
         Root TreeNode of the constructed tree
     """
-    import numpy as np
-    
     # Create root containing all documents
     root = TreeNode(documents=list(range(n_samples)))
     
@@ -90,8 +89,11 @@ def build_tree_from_bertopic_hierarchy(
         return _build_tree_from_hierarchical_structure(
             hierarchical_topics, topics, n_samples
         )
-    except (AttributeError, ValueError, Exception):
+    except (AttributeError, ValueError, TypeError) as e:
         # Fall back to simple binary split if hierarchical topics not available
+        # AttributeError: method doesn't exist
+        # ValueError: invalid input data
+        # TypeError: wrong argument types
         pass
     
     # Create a simple binary split based on topics
@@ -144,8 +146,6 @@ def _build_tree_from_hierarchical_structure(
     # This is a more sophisticated approach that uses BERTopic's hierarchical structure
     # For now, we'll use a simple binary split approach
     # Future enhancement: fully leverage BERTopic's dendrogram structure
-    
-    import numpy as np
     
     root = TreeNode(documents=list(range(n_samples)))
     unique_topics = sorted(set(t for t in topics if t != -1))
