@@ -212,14 +212,14 @@ def test_query_with_long_document():
     nli_model, nli_tokenizer = models.make_nli_model()
     
     # Create a long document
-    long_doc = " ".join([
-        "Dogs are amazing animals that have been companions to humans for thousands of years.",
-        "They are known for their loyalty, intelligence, and ability to form strong bonds with their owners.",
-        "Dogs come in many different breeds, each with unique characteristics and temperaments.",
-        "Some dogs are great for families with children, while others are better suited for active individuals.",
-        "Training a dog requires patience, consistency, and positive reinforcement.",
-        "Dogs need regular exercise, proper nutrition, and veterinary care to stay healthy.",
-    ])
+    long_doc = """
+    Dogs are amazing animals that have been companions to humans for thousands of years.
+    They are known for their loyalty, intelligence, and ability to form strong bonds with their owners.
+    Dogs come in many different breeds, each with unique characteristics and temperaments.
+    Some dogs are great for families with children, while others are better suited for active individuals.
+    Training a dog requires patience, consistency, and positive reinforcement.
+    Dogs need regular exercise, proper nutrition, and veterinary care to stay healthy.
+    """.strip()
     
     leaf = query(long_doc, tree, nli_model, nli_tokenizer, device='cpu', chunk_size=50, overlap=10)
     

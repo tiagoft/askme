@@ -70,7 +70,10 @@ def query(
         # Internal node - must have a question
         if current_node.question is None:
             # If there's no question but there are children, this is an error
-            raise ValueError(f"Internal node has children but no question")
+            raise ValueError(
+                f"Internal node has children but no question. "
+                f"Node has {len(current_node.documents)} documents."
+            )
         
         # Use NLI to answer the question
         hypothesis = current_node.question
@@ -84,7 +87,7 @@ def query(
             tokenizer=nli_tokenizer,
             device=device,
         )
-        entails, entailment_score, contradiction_score, P_entailment = pooled_results
+        entails, _, _, _ = pooled_results
         
         # Navigate based on entailment
         if entails:
