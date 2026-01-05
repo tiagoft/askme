@@ -19,6 +19,8 @@ from askme.rtp import (
     run_hdbscan_baseline,
     evaluate_exploratory_power,
     calculate_tree_depth,
+    tree_to_pdf,
+    
 )
 
 from datasets import load_dataset
@@ -187,7 +189,8 @@ def run_rtp_evaluation(texts: List[str], labels: List[int]):
             print(f"  {class_name}: isolated at depth {iso_depth}")
         else:
             print(f"  {class_name}: never fully isolated")
-    
+    pdf_path = tree_to_pdf(tree_root, output_path="tree_agnews_rtp")
+    print(f"PDF saved to: {pdf_path}")
     return tree_root, results, global_metrics
 
 
