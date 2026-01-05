@@ -4,7 +4,8 @@ import pytest
 import json
 import tempfile
 from pathlib import Path
-from askme.rtp import TreeNode, SplitMetrics, load_tree_from_json, tree_to_graphviz, tree_to_pdf
+from askme.rtp import TreeNode, SplitMetrics
+from askme.rtp.tree_to_pdf import load_tree_from_json, tree_to_graphviz, tree_to_pdf
 
 
 # Sample tree for testing
@@ -115,7 +116,7 @@ def test_tree_to_graphviz_with_custom_attrs():
     source = graph.source
     assert 'rankdir=LR' in source
     assert 'shape=ellipse' in source
-    assert 'fontsize="14"' in source
+    assert 'fontsize=14' in source
 
 
 def test_tree_to_graphviz_leaf_nodes():

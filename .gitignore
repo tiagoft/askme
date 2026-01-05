@@ -16,3 +16,10 @@ tree_node.json
 
 # Sample/test tree files
 src/interface/sample_tree.json
+
+# Demo tree visualization files
+demo_tree*.json
+demo_tree*.pdf
+demo_tree*.png
+*.pdf
+*.png
