@@ -33,6 +33,9 @@ def __getattr__(name):
     elif name == 'calculate_tree_depth':
         from .hdbscan_baseline import calculate_tree_depth
         return calculate_tree_depth
+    elif name == 'run_bertopic_baseline':
+        from .bertopic_baseline import run_bertopic_baseline
+        return run_bertopic_baseline
     elif name == 'load_tree_from_json':
         from .tree_to_pdf import load_tree_from_json
         return load_tree_from_json
@@ -57,6 +60,7 @@ __all__ = [
     'calculate_all_isolation_depths',
     'evaluate_exploratory_power',
     'run_hdbscan_baseline',
+    'run_bertopic_baseline',
     'calculate_tree_depth',
     'load_tree_from_json',
     'tree_to_graphviz',
