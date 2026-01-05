@@ -4,7 +4,7 @@ This directory contains experiments for evaluating the RTP (Recursive Tree Parti
 
 ## test_small_agnews.py
 
-A comprehensive evaluation script that compares RTP Recursion against HDBSCAN baseline using the AG News dataset.
+A comprehensive evaluation script that compares RTP Recursion against HDBSCAN and BERTopic baselines using the AG News dataset.
 
 ### Overview
 
@@ -24,9 +24,14 @@ The script performs the following tasks:
    - Uses sentence embeddings for similarity computation
    - Evaluates exploratory power with the same metrics
 
-4. **Comparison**:
-   - Compares both methods on purity, entropy, tree depth, and number of leaves
-   - Highlights the trade-offs between interpretability (RTP) and algorithmic efficiency (HDBSCAN)
+4. **BERTopic Evaluation**:
+   - Builds a hierarchical tree using topic modeling
+   - Creates topics with interpretable word representations
+   - Evaluates exploratory power with the same metrics
+
+5. **Comparison**:
+   - Compares all three methods on purity, entropy, tree depth, and number of leaves
+   - Highlights the trade-offs between interpretability and efficiency
 
 ### Requirements
 
@@ -35,6 +40,7 @@ The script requires the following dependencies (specified in `pyproject.toml`):
 - `sentence-transformers>=5.2.0` (for text embeddings)
 - `faiss-gpu-cu12>=1.13.1` (for efficient similarity search)
 - `scikit-learn>=1.3.0` (includes HDBSCAN clustering)
+- `bertopic>=0.16.0` (for topic modeling)
 - `pydantic-ai>=1.25.1` (for LLM calls)
 - `transformers>=4.57.3` (for NLI models)
 - `torch>=2.9.1` (deep learning framework)
@@ -50,12 +56,13 @@ python experiments/rtp_evaluation/test_small_agnews.py
 ### Expected Output
 
 The script produces:
-- Tree structures with sample documents for both methods
+- Tree structures with sample documents for all three methods
 - Detailed metrics including:
   - Tree depth and number of leaves
   - Average leaf purity and entropy
   - Isolation depths by class
   - RTP-specific metrics (LLM token usage, NLI calls, timing)
+  - BERTopic-specific metrics (number of topics found)
 - A comparison summary highlighting strengths of each approach
 
 ### Configuration
@@ -75,6 +82,12 @@ The script uses the following default parameters:
 - `min_cluster_size=5`: Minimum points in a cluster
 - `min_samples=2`: Minimum samples for core points
 - `device="cpu"`: Device for computation
+
+**BERTopic Parameters:**
+- `model_name="all-MiniLM-L6-v2"`: Sentence transformer model
+- `nr_topics="auto"`: Number of topics (automatically determined)
+- `device="cpu"`: Device for computation
+- `calculate_probabilities=False`: Whether to calculate topic probabilities
 
 **Dataset Parameters:**
 - `n_samples=100`: Number of documents to sample

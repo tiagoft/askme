@@ -33,6 +33,9 @@ def __getattr__(name):
     elif name == 'calculate_tree_depth':
         from .hdbscan_baseline import calculate_tree_depth
         return calculate_tree_depth
+    elif name == 'run_bertopic_baseline':
+        from .bertopic_baseline import run_bertopic_baseline
+        return run_bertopic_baseline
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
 __all__ = [
@@ -48,5 +51,6 @@ __all__ = [
     'calculate_all_isolation_depths',
     'evaluate_exploratory_power',
     'run_hdbscan_baseline',
+    'run_bertopic_baseline',
     'calculate_tree_depth',
 ]
