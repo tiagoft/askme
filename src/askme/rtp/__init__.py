@@ -36,6 +36,15 @@ def __getattr__(name):
     elif name == 'run_bertopic_baseline':
         from .bertopic_baseline import run_bertopic_baseline
         return run_bertopic_baseline
+    elif name == 'load_tree_from_json':
+        from .tree_to_pdf import load_tree_from_json
+        return load_tree_from_json
+    elif name == 'tree_to_graphviz':
+        from .tree_to_pdf import tree_to_graphviz
+        return tree_to_graphviz
+    elif name == 'tree_to_pdf':
+        from .tree_to_pdf import tree_to_pdf
+        return tree_to_pdf
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
 __all__ = [
@@ -53,4 +62,7 @@ __all__ = [
     'run_hdbscan_baseline',
     'run_bertopic_baseline',
     'calculate_tree_depth',
+    'load_tree_from_json',
+    'tree_to_graphviz',
+    'tree_to_pdf',
 ]
