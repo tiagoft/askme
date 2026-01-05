@@ -10,6 +10,7 @@ This script:
 
 import sys
 import os
+import pickle
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 from askme.rtp import (
@@ -25,7 +26,7 @@ import numpy as np
 from typing import List, Tuple
 
 
-def load_agnews_sample(n_samples: int = 100, seed: int = 42) -> Tuple[List[str], List[int]]:
+def load_agnews_sample(n_samples: int = 500, seed: int = 42) -> Tuple[List[str], List[int]]:
     """
     Load a sample of n documents from the AG News dataset.
     
@@ -109,8 +110,13 @@ def run_rtp_evaluation(texts: List[str], labels: List[int]):
     print("\nInitializing RTPBuilder...")
     builder = RTPBuilder(
         use_gpu=False,
-        n_medoids=3,
-        n_documents_to_answer=10,
+        n_medoids=20,
+        n_documents_to_answer='same',
+        max_retries=5,
+        min_split_ratio=0.1,
+        max_split_ratio=0.9,
+        alpha=1e-2,
+        verbose=True,
     )
     print("RTPBuilder initialized!")
     
@@ -118,10 +124,10 @@ def run_rtp_evaluation(texts: List[str], labels: List[int]):
     print("\nInitializing RTPRecursion...")
     recursion = RTPRecursion(
         builder=builder,
-        min_node_size=5,       # Don't split nodes with fewer than 5 documents
+        min_node_size=100,       # Don't split nodes with fewer than 5 documents
         min_split_ratio=0.1,   # Split should have at least 10% in smaller child
         max_split_ratio=0.9,   # Split should have at most 90% in larger child
-        max_depth=4,           # Maximum tree depth
+        max_depth=10,           # Maximum tree depth
     )
     print("RTPRecursion initialized!")
     
@@ -312,10 +318,14 @@ def main():
     print("=" * 80)
     
     # Load dataset
-    texts, labels = load_agnews_sample(n_samples=100, seed=42)
+    texts, labels = load_agnews_sample(n_samples=2500, seed=42)
     
     # Run RTP evaluation
     rtp_tree, rtp_results, rtp_metrics = run_rtp_evaluation(texts, labels)
+    
+    # Save the rtp_tree for further analysis if needed
+    with open("rtp_tree_on_small_agnews.pkl", "wb") as f:
+        pickle.dump(rtp_tree, f)
     
     # Run HDBSCAN evaluation
     hdbscan_tree, hdbscan_results, embeddings = run_hdbscan_evaluation(texts, labels)

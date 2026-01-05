@@ -73,15 +73,80 @@ def kmeans_with_faiss(
     kmeans = faiss.Kmeans(
         d=faiss_index.d,
         k=n_clusters,
-        niter=50,
-        verbose=True,
+        niter=500,
+        nredo=10,
+        verbose=False,
+        seed=1234,
+        spherical=True,
         gpu=False,
     )
-    kmeans.train(X, init_centroids=X[:n_clusters,:])
+    kmeans.train(X)#, init_centroids=X[:n_clusters,:])
+    centroids = kmeans.centroids
+    D, I = faiss_index.search(centroids, 1)  # D: distances, I: indices (shape k, 1)
 
-    # medoid indexes
-    # Find medoids
-    distances_to_centroids, _ = kmeans.index.search(X, k=n_clusters)
-    #print(distances_to_centroids.shape, distances_to_centroids)
-    medoid_indices = np.argmin(distances_to_centroids, axis=0)
+    medoid_indices = I.flatten()       # Indices of medoids in your original data
+    # # medoid indexes
+    # # Find medoids
+    # distances_to_centroids, _ = kmeans.index.search(X, k=n_clusters)
+    # #print(distances_to_centroids.shape, distances_to_centroids)
+    # medoid_indices = np.argmin(distances_to_centroids, axis=0)
     return medoid_indices
+
+
+def true_k_medoids_faiss(
+    embeddings: np.ndarray,  # normalized if needed
+    n_clusters: int,
+    nredo: int = 10,
+    seed: int = 1234
+) -> np.ndarray:
+    """
+    Returns indices of K unique medoids using a robust k-medoids approximation.
+    """
+    d = embeddings.shape[1]
+    best_medoids = None
+    best_inertia = np.inf
+
+    for _ in range(nredo):
+        # Randomly sample initial medoids
+        np.random.seed(seed + _)
+        init_indices = np.random.choice(len(embeddings), n_clusters, replace=False)
+        init_centroids = embeddings[init_indices]
+
+        # Train k-means with these as initial centroids
+        kmeans = faiss.Kmeans(
+            d=d,
+            k=n_clusters,
+            niter=50,
+            nredo=1,
+            verbose=False,
+            seed=seed + _,
+            spherical=True,
+            gpu=False,
+            min_points_per_centroid=5,
+        )
+        kmeans.centroids = init_centroids.astype('float32')
+        kmeans.train(embeddings)
+
+        # Assign all points to clusters
+        _, I = kmeans.index.search(x=embeddings, k=1)
+        labels = I.flatten()
+
+        # Compute medoid as the point with minimal sum of distances in its cluster
+        medoid_candidates = []
+        for i in range(n_clusters):
+            cluster_points = embeddings[labels == i]
+            cluster_indices = np.where(labels == i)[0]
+            if len(cluster_points) == 0:
+                continue
+            # Compute sum of distances to all other points in cluster
+            distances = ((cluster_points - cluster_points[:, None]) ** 2).sum(-1)
+            sum_dist = distances.sum(axis=1)
+            medoid_idx_in_cluster = np.argmin(sum_dist)
+            medoid_candidates.append(cluster_indices[medoid_idx_in_cluster])
+
+        inertia = kmeans.obj[-1]  # final objective
+        if inertia < best_inertia:
+            best_inertia = inertia
+            best_medoids = np.array(medoid_candidates)
+
+    return best_medoids
