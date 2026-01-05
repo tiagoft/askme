@@ -130,7 +130,7 @@ def tree_to_graphviz(
                     value = getattr(current_node.metrics, metric_name)
                     # Format metric value appropriately
                     if isinstance(value, float):
-                        if metric_name.endswith('_time_ms') or metric_name.endswith('_time'):
+                        if metric_name.endswith('_time_ms'):
                             label_parts.append(f"{metric_name}: {value:.1f}ms")
                         elif metric_name in ['split_ratio', 'medoid_nli_confidence_avg']:
                             label_parts.append(f"{metric_name}: {value:.3f}")
