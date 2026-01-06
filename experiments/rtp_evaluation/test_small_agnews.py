@@ -212,8 +212,7 @@ def run_hdbscan_evaluation(texts: List[str], labels: List[int]):
     tree, embeddings = run_hdbscan_baseline(
         texts,
         model_name="all-MiniLM-L6-v2",
-        min_cluster_size=5,
-        min_samples=30,
+        min_leaf_size=30,
         device="cpu",
     )
     
@@ -271,6 +270,7 @@ def run_bertopic_evaluation(texts: List[str], labels: List[int]):
         texts,
         model_name="all-MiniLM-L6-v2",
         nr_topics="auto",
+        min_leaf_size=30,
         device="cpu",
     )
     
@@ -329,27 +329,27 @@ def compare_results(rtp_results: dict, hdbscan_results: dict, bertopic_results: 
     print("=" * 80)
     
     print("\n=== Tree Structure ===")
-    rtp_depth = calculate_tree_depth(rtp_tree)
+    rtp_depth = calculate_tree_depth(rtp_tree) if rtp_tree else None
     hdbscan_depth = calculate_tree_depth(hdbscan_tree)
     bertopic_depth = calculate_tree_depth(bertopic_tree)
     print(f"RTP Tree Depth:      {rtp_depth}")
     print(f"HDBSCAN Tree Depth:  {hdbscan_depth}")
     print(f"BERTopic Tree Depth: {bertopic_depth}")
-    print(f"RTP Number of Leaves:      {rtp_results['num_leaves']}")
+    print(f"RTP Number of Leaves:      {rtp_results['num_leaves'] if rtp_results else 'N/A'}")
     print(f"HDBSCAN Number of Leaves:  {hdbscan_results['num_leaves']}")
     print(f"BERTopic Number of Leaves: {bertopic_results['num_leaves']}")
     
     print("\n=== Purity Metrics ===")
-    print(f"RTP Average Leaf Purity:      {rtp_results['average_leaf_purity']:.4f}")
+    print(f"RTP Average Leaf Purity:      {rtp_results['average_leaf_purity']:.4f}" if rtp_results else "RTP Average Leaf Purity: N/A")
     print(f"HDBSCAN Average Leaf Purity:  {hdbscan_results['average_leaf_purity']:.4f}")
     print(f"BERTopic Average Leaf Purity: {bertopic_results['average_leaf_purity']:.4f}")
     
     best_purity = max(
-        rtp_results['average_leaf_purity'],
+        rtp_results['average_leaf_purity'] if rtp_results else float('-inf'),
         hdbscan_results['average_leaf_purity'],
         bertopic_results['average_leaf_purity']
     )
-    if rtp_results['average_leaf_purity'] == best_purity:
+    if rtp_results and rtp_results['average_leaf_purity'] == best_purity:
         print("→ RTP has the best purity")
     elif hdbscan_results['average_leaf_purity'] == best_purity:
         print("→ HDBSCAN has the best purity")
@@ -357,16 +357,16 @@ def compare_results(rtp_results: dict, hdbscan_results: dict, bertopic_results: 
         print("→ BERTopic has the best purity")
     
     print("\n=== Entropy Metrics ===")
-    print(f"RTP Average Leaf Entropy:      {rtp_results['average_leaf_entropy']:.4f}")
+    print(f"RTP Average Leaf Entropy:      {rtp_results['average_leaf_entropy']:.4f}" if rtp_results else "RTP Average Leaf Entropy: N/A")
     print(f"HDBSCAN Average Leaf Entropy:  {hdbscan_results['average_leaf_entropy']:.4f}")
     print(f"BERTopic Average Leaf Entropy: {bertopic_results['average_leaf_entropy']:.4f}")
     
     best_entropy = min(
-        rtp_results['average_leaf_entropy'],
+        rtp_results['average_leaf_entropy'] if rtp_results else float('inf'),
         hdbscan_results['average_leaf_entropy'],
         bertopic_results['average_leaf_entropy']
     )
-    if rtp_results['average_leaf_entropy'] == best_entropy:
+    if rtp_results and rtp_results['average_leaf_entropy'] == best_entropy:
         print("→ RTP has the lowest entropy (best)")
     elif hdbscan_results['average_leaf_entropy'] == best_entropy:
         print("→ HDBSCAN has the lowest entropy (best)")
@@ -374,10 +374,12 @@ def compare_results(rtp_results: dict, hdbscan_results: dict, bertopic_results: 
         print("→ BERTopic has the lowest entropy (best)")
     
     print("\n=== RTP-Specific Metrics ===")
-    print(f"Total LLM Tokens Used: {rtp_metrics.llm_input_tokens + rtp_metrics.llm_output_tokens}")
-    print(f"Total NLI Calls: {rtp_metrics.nli_calls}")
-    print(f"Total Time: {rtp_metrics.total_time_ms:.2f} ms")
-    print(f"Number of Split Nodes: {rtp_metrics.num_nodes}")
+    if rtp_metrics:
+        print(f"Total LLM Input Tokens: {rtp_metrics.llm_input_tokens}")
+        print(f"Total LLM Output Tokens: {rtp_metrics.llm_output_tokens}")
+        print(f"Total NLI Calls: {rtp_metrics.nli_calls}")
+        print(f"Total Time: {rtp_metrics.total_time_ms:.2f} ms")
+        print(f"Number of Split Nodes: {rtp_metrics.num_nodes}")
     
     print("\n" + "=" * 80)
     print("Interpretation:")
@@ -400,14 +402,14 @@ def main():
     # Load dataset
     texts, labels = load_agnews_sample(n_samples=2500, seed=42)
     
-    # Run RTP evaluation
-    rtp_tree, rtp_results, rtp_metrics = run_rtp_evaluation(texts, labels)
+    # # Run RTP evaluation
+    # rtp_tree, rtp_results, rtp_metrics = run_rtp_evaluation(texts, labels)
     
-    # Save the rtp_tree for further analysis if needed
-    json_string = rtp_tree.model_dump_json()
+    # # Save the rtp_tree for further analysis if needed
+    # json_string = rtp_tree.model_dump_json()
     
-    with open("rtp_tree_on_small_agnews.json", 'w') as f:
-        f.write(json_string)
+    # with open("rtp_tree_on_small_agnews.json", 'w') as f:
+    #     f.write(json_string)
     
     # Run HDBSCAN evaluation
     hdbscan_tree, hdbscan_results, hdbscan_embeddings = run_hdbscan_evaluation(texts, labels)
@@ -415,10 +417,14 @@ def main():
     # Run BERTopic evaluation
     bertopic_tree, bertopic_results, bertopic_embeddings, topic_model = run_bertopic_evaluation(texts, labels)
     
-    # Compare results
-    compare_results(rtp_results, hdbscan_results, bertopic_results, 
-                   rtp_metrics, rtp_tree, hdbscan_tree, bertopic_tree)
+    # # Compare results
+    # compare_results(rtp_results, hdbscan_results, bertopic_results, 
+    #                rtp_metrics, rtp_tree, hdbscan_tree, bertopic_tree)
     
+    
+    # Compare results
+    compare_results(None, hdbscan_results, bertopic_results, 
+                   None, None, hdbscan_tree, bertopic_tree)
     print("\n" + "=" * 80)
     print("EVALUATION COMPLETE")
     print("=" * 80)
