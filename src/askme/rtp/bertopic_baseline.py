@@ -49,6 +49,8 @@ def build_tree_from_bertopic_hierarchy(
     topic_model,
     topics: List[int],
     n_samples: int,
+    max_tree_depth: int = 10,
+    min_leaf_size: int = 1,
 ) -> TreeNode:
     """
     Build a binary TreeNode structure from BERTopic hierarchical clustering results.
@@ -60,12 +62,18 @@ def build_tree_from_bertopic_hierarchy(
         topic_model: Fitted BERTopic model with hierarchical topics
         topics: Topic assignments for each document
         n_samples: Number of samples in the dataset
+        max_tree_depth: Maximum depth of the tree (default: 10). Root has depth 0.
+        min_leaf_size: Minimum number of documents for a node to be split (default: 1)
         
     Returns:
         Root TreeNode of the constructed tree
     """
     # Create root containing all documents
     root = TreeNode(documents=list(range(n_samples)))
+    
+    # Check stopping criteria: max depth reached or node too small
+    if max_tree_depth <= 0 or n_samples <= min_leaf_size:
+        return root
     
     # Get unique topics (excluding outliers labeled as -1)
     unique_topics = sorted(set(topics))
@@ -87,7 +95,7 @@ def build_tree_from_bertopic_hierarchy(
         hierarchical_topics = topic_model.hierarchical_topics(topics)
         # Build tree based on hierarchical structure
         return _build_tree_from_hierarchical_structure(
-            hierarchical_topics, topics, n_samples
+            hierarchical_topics, topics, n_samples, max_tree_depth, min_leaf_size
         )
     except (AttributeError, ValueError, TypeError) as e:
         # Fall back to simple binary split if hierarchical topics not available
@@ -120,9 +128,9 @@ def build_tree_from_bertopic_hierarchy(
     
     # Recursively split children if they have multiple topics
     if root.left and len(left_topics) > 1:
-        root.left = _split_node_by_topics(root.left, topics, left_topics)
+        root.left = _split_node_by_topics(root.left, topics, left_topics, max_tree_depth - 1, min_leaf_size)
     if root.right and len(right_topics) > 1:
-        root.right = _split_node_by_topics(root.right, topics, right_topics)
+        root.right = _split_node_by_topics(root.right, topics, right_topics, max_tree_depth - 1, min_leaf_size)
     
     return root
 
@@ -131,6 +139,8 @@ def _build_tree_from_hierarchical_structure(
     hierarchical_topics,
     topics: List[int],
     n_samples: int,
+    max_tree_depth: int = 10,
+    min_leaf_size: int = 1,
 ) -> TreeNode:
     """
     Build a tree from BERTopic's hierarchical topics structure.
@@ -139,6 +149,8 @@ def _build_tree_from_hierarchical_structure(
         hierarchical_topics: DataFrame with hierarchical topic structure
         topics: Topic assignments for each document
         n_samples: Number of samples
+        max_tree_depth: Maximum depth of the tree (default: 10)
+        min_leaf_size: Minimum number of documents for a node to be split (default: 1)
         
     Returns:
         Root TreeNode of the constructed tree
@@ -148,6 +160,11 @@ def _build_tree_from_hierarchical_structure(
     # Future enhancement: fully leverage BERTopic's dendrogram structure
     
     root = TreeNode(documents=list(range(n_samples)))
+    
+    # Check stopping criteria
+    if max_tree_depth <= 0 or n_samples <= min_leaf_size:
+        return root
+    
     unique_topics = sorted(set(t for t in topics if t != -1))
     
     if len(unique_topics) <= 1:
@@ -164,12 +181,12 @@ def _build_tree_from_hierarchical_structure(
     if left_docs:
         root.left = TreeNode(documents=left_docs)
         if len(left_topics) > 1:
-            root.left = _split_node_by_topics(root.left, topics, left_topics)
+            root.left = _split_node_by_topics(root.left, topics, left_topics, max_tree_depth - 1, min_leaf_size)
     
     if right_docs:
         root.right = TreeNode(documents=right_docs)
         if len(right_topics) > 1:
-            root.right = _split_node_by_topics(root.right, topics, right_topics)
+            root.right = _split_node_by_topics(root.right, topics, right_topics, max_tree_depth - 1, min_leaf_size)
     
     return root
 
@@ -178,6 +195,8 @@ def _split_node_by_topics(
     node: TreeNode,
     topics,
     topic_set: set,
+    max_tree_depth: int = 10,
+    min_leaf_size: int = 1,
 ) -> TreeNode:
     """
     Helper function to recursively split a node based on topic membership.
@@ -186,11 +205,14 @@ def _split_node_by_topics(
         node: TreeNode to split
         topics: Topic assignments for all documents (list or array-like)
         topic_set: Set of topic IDs in this node
+        max_tree_depth: Maximum remaining depth for recursion (default: 10)
+        min_leaf_size: Minimum number of documents for a node to be split (default: 1)
         
     Returns:
         Updated TreeNode with children
     """
-    if len(topic_set) <= 1:
+    # Check stopping criteria
+    if max_tree_depth <= 0 or len(node.documents) <= min_leaf_size or len(topic_set) <= 1:
         return node
     
     # Split topics into two groups
@@ -206,12 +228,12 @@ def _split_node_by_topics(
     if left_docs:
         node.left = TreeNode(documents=left_docs)
         if len(left_topics) > 1:
-            node.left = _split_node_by_topics(node.left, topics, left_topics)
+            node.left = _split_node_by_topics(node.left, topics, left_topics, max_tree_depth - 1, min_leaf_size)
     
     if right_docs:
         node.right = TreeNode(documents=right_docs)
         if len(right_topics) > 1:
-            node.right = _split_node_by_topics(node.right, topics, right_topics)
+            node.right = _split_node_by_topics(node.right, topics, right_topics, max_tree_depth - 1, min_leaf_size)
     
     return node
 
@@ -244,6 +266,8 @@ def run_bertopic_baseline(
     nr_topics: str = "auto",
     device: str = "cpu",
     calculate_probabilities: bool = False,
+    max_tree_depth: int = 10,
+    min_leaf_size: int = 1,
 ):
     """
     Run BERTopic clustering on a text dataset and return a TreeNode structure.
@@ -257,6 +281,8 @@ def run_bertopic_baseline(
         nr_topics: Number of topics to create ("auto" for automatic, or an integer)
         device: Device to run the model on ('cpu' or 'cuda')
         calculate_probabilities: Whether to calculate topic probabilities
+        max_tree_depth: Maximum depth of the tree (default: 10). Root has depth 0.
+        min_leaf_size: Minimum number of documents for a node to be split (default: 1)
         
     Returns:
         Tuple of (root TreeNode, embeddings array, topic_model)
@@ -287,6 +313,8 @@ def run_bertopic_baseline(
     topics, _ = topic_model.fit_transform(texts, embeddings)
     
     # Build tree from BERTopic results
-    tree = build_tree_from_bertopic_hierarchy(topic_model, topics, len(texts))
+    tree = build_tree_from_bertopic_hierarchy(
+        topic_model, topics, len(texts), max_tree_depth, min_leaf_size
+    )
     
     return tree, embeddings, topic_model
