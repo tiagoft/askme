@@ -16,6 +16,7 @@ from askme.rtp import (
     RTPBuilder,
     RTPRecursion,
     run_hdbscan_baseline,
+    run_bertopic_baseline,
     evaluate_exploratory_power,
     calculate_tree_depth,
 )
@@ -243,50 +244,126 @@ def run_hdbscan_evaluation(texts: List[str], labels: List[int]):
     return tree, results, embeddings
 
 
-def compare_results(rtp_results: dict, hdbscan_results: dict, rtp_metrics, rtp_tree, hdbscan_tree):
+def run_bertopic_evaluation(texts: List[str], labels: List[int]):
     """
-    Compare results between RTP and HDBSCAN methods.
+    Run BERTopic baseline on the dataset and evaluate.
+    
+    Args:
+        texts: List of text documents
+        labels: Ground truth labels
+    """
+    print("\n" + "=" * 80)
+    print("BERTOPIC BASELINE EVALUATION")
+    print("=" * 80)
+    
+    # Run BERTopic baseline
+    print("\nRunning BERTopic clustering...")
+    print("This may take a moment while the model processes...")
+    tree, embeddings, topic_model = run_bertopic_baseline(
+        texts,
+        model_name="all-MiniLM-L6-v2",
+        nr_topics="auto",
+        device="cpu",
+    )
+    
+    print("\nClustering complete!")
+    print(f"Embeddings shape: {embeddings.shape}")
+    print(f"Number of topics found: {len(set(topic_model.topics_)) - (1 if -1 in topic_model.topics_ else 0)}")
+    
+    # Calculate tree depth
+    depth = calculate_tree_depth(tree)
+    print(f"Tree depth: {depth}")
+    
+    # Evaluate exploratory power
+    print("\n=== BERTopic Exploratory Power Evaluation ===")
+    results = evaluate_exploratory_power(tree, labels)
+    
+    print(f"Number of leaf nodes: {results['num_leaves']}")
+    print(f"Average leaf purity: {results['average_leaf_purity']:.4f}")
+    print(f"Average leaf entropy: {results['average_leaf_entropy']:.4f}")
+    
+    print("\nLeaf Purities (by leaf):")
+    for leaf_id, purity in results['leaf_purities'].items():
+        print(f"  Leaf {leaf_id}: {purity:.4f}")
+    
+    print("\nLeaf Entropies (by leaf):")
+    for leaf_id, entropy in results['leaf_entropies'].items():
+        print(f"  Leaf {leaf_id}: {entropy:.4f}")
+    
+    print("\nIsolation Depths (by class):")
+    class_names = ["World", "Sports", "Business", "Sci/Tech"]
+    for class_label, iso_depth in results['isolation_depths'].items():
+        class_name = class_names[class_label] if class_label < len(class_names) else f"Class {class_label}"
+        if iso_depth is not None:
+            print(f"  {class_name}: isolated at depth {iso_depth}")
+        else:
+            print(f"  {class_name}: never fully isolated")
+    
+    return tree, results, embeddings, topic_model
+
+
+def compare_results(rtp_results: dict, hdbscan_results: dict, bertopic_results: dict, 
+                   rtp_metrics, rtp_tree, hdbscan_tree, bertopic_tree):
+    """
+    Compare results between RTP, HDBSCAN, and BERTopic methods.
     
     Args:
         rtp_results: RTP exploratory power results
         hdbscan_results: HDBSCAN exploratory power results
+        bertopic_results: BERTopic exploratory power results
         rtp_metrics: RTP global metrics
         rtp_tree: RTP tree root
         hdbscan_tree: HDBSCAN tree root
+        bertopic_tree: BERTopic tree root
     """
     print("\n" + "=" * 80)
-    print("COMPARISON: RTP vs HDBSCAN")
+    print("COMPARISON: RTP vs HDBSCAN vs BERTopic")
     print("=" * 80)
     
     print("\n=== Tree Structure ===")
     rtp_depth = calculate_tree_depth(rtp_tree)
     hdbscan_depth = calculate_tree_depth(hdbscan_tree)
-    print(f"RTP Tree Depth:     {rtp_depth}")
-    print(f"HDBSCAN Tree Depth: {hdbscan_depth}")
-    print(f"RTP Number of Leaves:     {rtp_results['num_leaves']}")
-    print(f"HDBSCAN Number of Leaves: {hdbscan_results['num_leaves']}")
+    bertopic_depth = calculate_tree_depth(bertopic_tree)
+    print(f"RTP Tree Depth:      {rtp_depth}")
+    print(f"HDBSCAN Tree Depth:  {hdbscan_depth}")
+    print(f"BERTopic Tree Depth: {bertopic_depth}")
+    print(f"RTP Number of Leaves:      {rtp_results['num_leaves']}")
+    print(f"HDBSCAN Number of Leaves:  {hdbscan_results['num_leaves']}")
+    print(f"BERTopic Number of Leaves: {bertopic_results['num_leaves']}")
     
     print("\n=== Purity Metrics ===")
-    print(f"RTP Average Leaf Purity:     {rtp_results['average_leaf_purity']:.4f}")
-    print(f"HDBSCAN Average Leaf Purity: {hdbscan_results['average_leaf_purity']:.4f}")
+    print(f"RTP Average Leaf Purity:      {rtp_results['average_leaf_purity']:.4f}")
+    print(f"HDBSCAN Average Leaf Purity:  {hdbscan_results['average_leaf_purity']:.4f}")
+    print(f"BERTopic Average Leaf Purity: {bertopic_results['average_leaf_purity']:.4f}")
     
-    if rtp_results['average_leaf_purity'] > hdbscan_results['average_leaf_purity']:
-        print("→ RTP has better purity")
-    elif rtp_results['average_leaf_purity'] < hdbscan_results['average_leaf_purity']:
-        print("→ HDBSCAN has better purity")
+    best_purity = max(
+        rtp_results['average_leaf_purity'],
+        hdbscan_results['average_leaf_purity'],
+        bertopic_results['average_leaf_purity']
+    )
+    if rtp_results['average_leaf_purity'] == best_purity:
+        print("→ RTP has the best purity")
+    elif hdbscan_results['average_leaf_purity'] == best_purity:
+        print("→ HDBSCAN has the best purity")
     else:
-        print("→ Both methods have equal purity")
+        print("→ BERTopic has the best purity")
     
     print("\n=== Entropy Metrics ===")
-    print(f"RTP Average Leaf Entropy:     {rtp_results['average_leaf_entropy']:.4f}")
-    print(f"HDBSCAN Average Leaf Entropy: {hdbscan_results['average_leaf_entropy']:.4f}")
+    print(f"RTP Average Leaf Entropy:      {rtp_results['average_leaf_entropy']:.4f}")
+    print(f"HDBSCAN Average Leaf Entropy:  {hdbscan_results['average_leaf_entropy']:.4f}")
+    print(f"BERTopic Average Leaf Entropy: {bertopic_results['average_leaf_entropy']:.4f}")
     
-    if rtp_results['average_leaf_entropy'] < hdbscan_results['average_leaf_entropy']:
-        print("→ RTP has lower entropy (better)")
-    elif rtp_results['average_leaf_entropy'] > hdbscan_results['average_leaf_entropy']:
-        print("→ HDBSCAN has lower entropy (better)")
+    best_entropy = min(
+        rtp_results['average_leaf_entropy'],
+        hdbscan_results['average_leaf_entropy'],
+        bertopic_results['average_leaf_entropy']
+    )
+    if rtp_results['average_leaf_entropy'] == best_entropy:
+        print("→ RTP has the lowest entropy (best)")
+    elif hdbscan_results['average_leaf_entropy'] == best_entropy:
+        print("→ HDBSCAN has the lowest entropy (best)")
     else:
-        print("→ Both methods have equal entropy")
+        print("→ BERTopic has the lowest entropy (best)")
     
     print("\n=== RTP-Specific Metrics ===")
     print(f"Total LLM Tokens Used: {rtp_metrics.llm_input_tokens + rtp_metrics.llm_output_tokens}")
@@ -300,15 +377,16 @@ def compare_results(rtp_results: dict, hdbscan_results: dict, rtp_metrics, rtp_t
     print("""
 - Higher purity indicates better separation of document categories
 - Lower entropy indicates less mixing of classes within leaf nodes
-- RTP uses LLM-generated questions for splitting, while HDBSCAN uses density-based clustering
-- RTP provides interpretable splits through questions, while HDBSCAN is purely algorithmic
+- RTP uses LLM-generated questions for splitting (interpretable but costly)
+- HDBSCAN uses density-based clustering (fast, purely algorithmic)
+- BERTopic uses topic modeling with hierarchical clustering (topics are interpretable)
 """)
 
 
 def main():
     """Main function to run the complete evaluation."""
     print("=" * 80)
-    print("AG NEWS DATASET EVALUATION: RTP vs HDBSCAN")
+    print("AG NEWS DATASET EVALUATION: RTP vs HDBSCAN vs BERTopic")
     print("=" * 80)
     
     # Load dataset
@@ -318,10 +396,14 @@ def main():
     rtp_tree, rtp_results, rtp_metrics = run_rtp_evaluation(texts, labels)
     
     # Run HDBSCAN evaluation
-    hdbscan_tree, hdbscan_results, embeddings = run_hdbscan_evaluation(texts, labels)
+    hdbscan_tree, hdbscan_results, hdbscan_embeddings = run_hdbscan_evaluation(texts, labels)
+    
+    # Run BERTopic evaluation
+    bertopic_tree, bertopic_results, bertopic_embeddings, topic_model = run_bertopic_evaluation(texts, labels)
     
     # Compare results
-    compare_results(rtp_results, hdbscan_results, rtp_metrics, rtp_tree, hdbscan_tree)
+    compare_results(rtp_results, hdbscan_results, bertopic_results, 
+                   rtp_metrics, rtp_tree, hdbscan_tree, bertopic_tree)
     
     print("\n" + "=" * 80)
     print("EVALUATION COMPLETE")
