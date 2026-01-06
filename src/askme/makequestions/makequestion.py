@@ -19,7 +19,7 @@ def make_a_question_about_collection(
      
     user_prompt = f"Texts: {collection}"
     if blacklist is not None and len(blacklist) > 0:
-        prompt += f"\Avoid the following topics: {blacklist}\n"
+        user_prompt += f"\nAvoid the following topics: {blacklist}\n"
 
     agent = Agent(
         model,
