@@ -46,6 +46,8 @@ def vectorize_texts(
 def build_tree_from_hdbscan(
     clusterer,
     n_samples: int,
+    max_tree_depth: int = 10,
+    min_leaf_size: int = 1,
 ) -> TreeNode:
     """
     Build a binary TreeNode structure from HDBSCAN clustering results.
@@ -57,6 +59,8 @@ def build_tree_from_hdbscan(
     Args:
         clusterer: Fitted HDBSCAN clusterer
         n_samples: Number of samples in the dataset
+        max_tree_depth: Maximum depth of the tree (default: 10). Root has depth 0.
+        min_leaf_size: Minimum number of documents for a node to be split (default: 1)
         
     Returns:
         Root TreeNode of the constructed tree
@@ -69,6 +73,10 @@ def build_tree_from_hdbscan(
     # Create a simple binary tree based on cluster membership
     # Root contains all documents
     root = TreeNode(documents=list(range(n_samples)))
+    
+    # Check stopping criteria: max depth reached or node too small
+    if max_tree_depth <= 0 or n_samples < min_leaf_size:
+        return root
     
     # Get unique cluster labels (excluding noise points labeled as -1)
     unique_clusters = sorted(set(labels))
@@ -111,9 +119,9 @@ def build_tree_from_hdbscan(
     
     # Recursively split children if they have multiple clusters
     if root.left and len(left_clusters) > 1:
-        root.left = _split_node_by_clusters(root.left, labels, left_clusters)
+        root.left = _split_node_by_clusters(root.left, labels, left_clusters, max_tree_depth - 1, min_leaf_size)
     if root.right and len(right_clusters) > 1:
-        root.right = _split_node_by_clusters(root.right, labels, right_clusters)
+        root.right = _split_node_by_clusters(root.right, labels, right_clusters, max_tree_depth - 1, min_leaf_size)
     
     return root
 
@@ -122,6 +130,8 @@ def _split_node_by_clusters(
     node: TreeNode,
     labels,
     clusters: set,
+    max_tree_depth: int = 10,
+    min_leaf_size: int = 1,
 ) -> TreeNode:
     """
     Helper function to recursively split a node based on cluster membership.
@@ -130,12 +140,16 @@ def _split_node_by_clusters(
         node: TreeNode to split
         labels: Cluster labels for all documents (numpy array or array-like)
         clusters: Set of cluster IDs in this node
+        max_tree_depth: Maximum remaining depth for recursion (default: 10)
+        min_leaf_size: Minimum number of documents for a node to be split (default: 1)
         
     Returns:
         Updated TreeNode with children
     """
     import numpy as np
-    if len(clusters) <= 1:
+    
+    # Check stopping criteria
+    if max_tree_depth <= 0 or len(node.documents) < min_leaf_size or len(clusters) <= 1:
         return node
     
     # Split clusters into two groups
@@ -151,12 +165,12 @@ def _split_node_by_clusters(
     if left_docs:
         node.left = TreeNode(documents=left_docs)
         if len(left_clusters) > 1:
-            node.left = _split_node_by_clusters(node.left, labels, left_clusters)
+            node.left = _split_node_by_clusters(node.left, labels, left_clusters, max_tree_depth - 1, min_leaf_size)
     
     if right_docs:
         node.right = TreeNode(documents=right_docs)
         if len(right_clusters) > 1:
-            node.right = _split_node_by_clusters(node.right, labels, right_clusters)
+            node.right = _split_node_by_clusters(node.right, labels, right_clusters, max_tree_depth - 1, min_leaf_size)
     
     return node
 
@@ -189,6 +203,8 @@ def run_hdbscan_baseline(
     min_cluster_size: int = 5,
     min_samples: int = 1,
     device: str = "cpu",
+    max_tree_depth: int = 10,
+    min_leaf_size: int = 1,
 ):
     """
     Run HDBSCAN clustering on a text dataset and return a TreeNode structure.
@@ -199,6 +215,8 @@ def run_hdbscan_baseline(
         min_cluster_size: Minimum cluster size for HDBSCAN
         min_samples: Minimum samples parameter for HDBSCAN
         device: Device to run the model on ('cpu' or 'cuda')
+        max_tree_depth: Maximum depth of the tree (default: 10). Root has depth 0.
+        min_leaf_size: Minimum number of documents for a node to be split (default: 1)
         
     Returns:
         Tuple of (root TreeNode, embeddings array)
@@ -223,6 +241,6 @@ def run_hdbscan_baseline(
     clusterer.fit(embeddings)
     
     # Build tree from HDBSCAN results
-    tree = build_tree_from_hdbscan(clusterer, len(texts))
+    tree = build_tree_from_hdbscan(clusterer, len(texts), max_tree_depth, min_leaf_size)
     
     return tree, embeddings

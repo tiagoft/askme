@@ -168,3 +168,80 @@ def test_build_tree_from_hdbscan_mock_four_clusters():
     # Calculate depth - with 4 clusters, we should have at least depth 1
     depth = calculate_tree_depth(tree)
     assert depth >= 1
+
+
+def test_hdbscan_max_tree_depth_zero():
+    """Test that max_tree_depth=0 creates a single leaf node."""
+    class MockHDBSCAN:
+        def __init__(self):
+            self.labels_ = np.array([0, 0, 1, 1, 2, 2, 3, 3])
+    
+    clusterer = MockHDBSCAN()
+    tree = build_tree_from_hdbscan(clusterer, 8, max_tree_depth=0)
+    
+    # Should return a leaf node with all documents
+    assert tree.documents == list(range(8))
+    assert tree.left is None
+    assert tree.right is None
+
+
+def test_hdbscan_max_tree_depth_one():
+    """Test that max_tree_depth=1 limits tree to depth 1."""
+    class MockHDBSCAN:
+        def __init__(self):
+            self.labels_ = np.array([0, 0, 1, 1, 2, 2, 3, 3])
+    
+    clusterer = MockHDBSCAN()
+    tree = build_tree_from_hdbscan(clusterer, 8, max_tree_depth=1)
+    
+    # Should create a root with children but no deeper
+    assert len(tree.documents) == 8
+    depth = calculate_tree_depth(tree)
+    assert depth <= 1
+
+
+def test_hdbscan_min_leaf_size_prevents_split():
+    """Test that min_leaf_size prevents splitting small nodes."""
+    class MockHDBSCAN:
+        def __init__(self):
+            self.labels_ = np.array([0, 0, 1, 1])
+    
+    clusterer = MockHDBSCAN()
+    # Set min_leaf_size larger than the dataset
+    tree = build_tree_from_hdbscan(clusterer, 4, min_leaf_size=10)
+    
+    # Should return a leaf node with all documents (not split)
+    assert tree.documents == [0, 1, 2, 3]
+    assert tree.left is None
+    assert tree.right is None
+
+
+def test_hdbscan_min_leaf_size_allows_split():
+    """Test that nodes above min_leaf_size can be split."""
+    class MockHDBSCAN:
+        def __init__(self):
+            self.labels_ = np.array([0, 0, 1, 1, 2, 2, 3, 3])
+    
+    clusterer = MockHDBSCAN()
+    # Set min_leaf_size to 2, should allow splitting
+    tree = build_tree_from_hdbscan(clusterer, 8, min_leaf_size=2)
+    
+    # Should create a split since we have 8 documents
+    assert len(tree.documents) == 8
+    assert tree.left is not None
+    assert tree.right is not None
+
+
+def test_hdbscan_combined_stop_conditions():
+    """Test that both max_tree_depth and min_leaf_size work together."""
+    class MockHDBSCAN:
+        def __init__(self):
+            self.labels_ = np.array([0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5])
+    
+    clusterer = MockHDBSCAN()
+    # Use both conditions
+    tree = build_tree_from_hdbscan(clusterer, 12, max_tree_depth=2, min_leaf_size=2)
+    
+    # Should create a tree with limited depth
+    depth = calculate_tree_depth(tree)
+    assert depth <= 2
