@@ -33,6 +33,9 @@ def __getattr__(name):
     elif name == 'calculate_tree_depth':
         from .hdbscan_baseline import calculate_tree_depth
         return calculate_tree_depth
+    elif name == 'query':
+        from .query import query
+        return query
     elif name == 'run_bertopic_baseline':
         from .bertopic_baseline import run_bertopic_baseline
         return run_bertopic_baseline
@@ -62,6 +65,7 @@ __all__ = [
     'run_hdbscan_baseline',
     'run_bertopic_baseline',
     'calculate_tree_depth',
+    'query',
     'load_tree_from_json',
     'tree_to_graphviz',
     'tree_to_pdf',
