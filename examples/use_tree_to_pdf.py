@@ -8,7 +8,9 @@ This script demonstrates how to:
 4. Convert the tree to PDF with various customization options
 """
 
-from askme.rtp import RTPBuilder, load_tree_from_json, tree_to_pdf
+from askme.rtp import RTPBuilder, load_tree_from_json
+from askme.rtp.tree_to_pdf import tree_to_pdf
+import pickle 
 
 # Sample text collection
 text_collection = [
@@ -186,8 +188,10 @@ def main():
     print("█" * 60 + "\n")
     
     # Create and save tree
-    tree = create_and_save_tree()
-    
+    #tree = create_and_save_tree()
+    with open('rtp_tree_on_small_agnews.pkl', 'rb') as f:
+        tree = pickle.load(f)
+         
     # Run all examples
     example_basic_pdf(tree)
     example_with_metrics(tree)

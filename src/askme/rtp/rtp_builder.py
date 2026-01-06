@@ -134,7 +134,8 @@ class RTPBuilder:
     def __call__(
         self,
         X: Iterable[str],
-        return_metrics: bool = False
+        return_metrics: bool = False,
+        initial_blacklist: Optional[list[str]] = None,
     ) -> Union[TreeNode, tuple[TreeNode, SplitMetrics]]:
         """
         Execute the RTP algorithm on a collection of text documents.
@@ -195,12 +196,16 @@ class RTPBuilder:
             print(f"Medoid indices: {medoid_indices}")
 
 
-#            print(f"Medoids: {medoids}")
+        #            print(f"Medoids: {medoids}")
 
-# Retry loop for generating a good question
-# The loop attempts to generate a question that leads to an acceptable split ratio
-# If min_split_ratio or max_split_ratio is None, no validation occurs
-        blacklist = []
+        # Retry loop for generating a good question
+        # The loop attempts to generate a question that leads to an acceptable split ratio
+        # If min_split_ratio or max_split_ratio is None, no validation occurs
+        if initial_blacklist is not None:
+            blacklist = initial_blacklist
+        else:
+            blacklist = []
+       
         hypothesis = None
         propagated_labels = None
         left_docs = []
@@ -369,6 +374,7 @@ class RTPBuilder:
 
         # Calculate total time
         metrics.total_time_ms = (time.time() - start_time) * 1000
+        root.blacklist = blacklist
 
         if return_metrics:
             return root, metrics
@@ -443,6 +449,7 @@ class RTPRecursion:
         text_collection: list[str],
         document_indices: list[int],
         depth: int,
+        current_blacklist: Optional[list[str]] = None,
     ) -> tuple[TreeNode, SplitMetrics]:
         """
         Recursively build the tree structure.
@@ -468,7 +475,8 @@ class RTPRecursion:
 
         # Execute RTPBuilder for current node
         node_root, node_metrics = self.builder(node_documents,
-                                               return_metrics=True)
+                                               return_metrics=True,
+                                               initial_blacklist=current_blacklist)
 
         # Create tree node with original document indices
         node_root.metrics = node_metrics
@@ -508,12 +516,14 @@ class RTPRecursion:
             text_collection=text_collection,
             document_indices=left_original_indices,
             depth=depth + 1,
+            current_blacklist=node_root.blacklist,
         )
 
         node_root.right, right_metrics = self._recurse(
             text_collection=text_collection,
             document_indices=right_original_indices,
             depth=depth + 1,
+            current_blacklist=node_root.blacklist,
         )
 
         # Combine metrics from current node and children using __add__

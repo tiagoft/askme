@@ -21,7 +21,6 @@ from askme.rtp import (
     evaluate_exploratory_power,
     calculate_tree_depth,
     tree_to_pdf,
-    
 )
 
 from datasets import load_dataset
@@ -127,7 +126,7 @@ def run_rtp_evaluation(texts: List[str], labels: List[int]):
     print("\nInitializing RTPRecursion...")
     recursion = RTPRecursion(
         builder=builder,
-        min_node_size=100,       # Don't split nodes with fewer than 5 documents
+        min_node_size=30,       # Don't split nodes with fewer than 5 documents
         min_split_ratio=0.1,   # Split should have at least 10% in smaller child
         max_split_ratio=0.9,   # Split should have at most 90% in larger child
         max_depth=10,           # Maximum tree depth
@@ -190,7 +189,7 @@ def run_rtp_evaluation(texts: List[str], labels: List[int]):
             print(f"  {class_name}: isolated at depth {iso_depth}")
         else:
             print(f"  {class_name}: never fully isolated")
-    pdf_path = tree_to_pdf(tree_root, output_path="tree_agnews_rtp")
+    pdf_path = tree_to_pdf.tree_to_pdf(tree_root, output_path="tree_agnews_rtp.pdf")
     print(f"PDF saved to: {pdf_path}")
     return tree_root, results, global_metrics
 
@@ -214,7 +213,7 @@ def run_hdbscan_evaluation(texts: List[str], labels: List[int]):
         texts,
         model_name="all-MiniLM-L6-v2",
         min_cluster_size=5,
-        min_samples=2,
+        min_samples=30,
         device="cpu",
     )
     
@@ -405,8 +404,10 @@ def main():
     rtp_tree, rtp_results, rtp_metrics = run_rtp_evaluation(texts, labels)
     
     # Save the rtp_tree for further analysis if needed
-    with open("rtp_tree_on_small_agnews.pkl", "wb") as f:
-        pickle.dump(rtp_tree, f)
+    json_string = rtp_tree.model_dump_json()
+    
+    with open("rtp_tree_on_small_agnews.json", 'w') as f:
+        f.write(json_string)
     
     # Run HDBSCAN evaluation
     hdbscan_tree, hdbscan_results, hdbscan_embeddings = run_hdbscan_evaluation(texts, labels)

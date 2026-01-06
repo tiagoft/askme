@@ -1,0 +1,7 @@
+[makequestions]
+system_prompt = """
+You are a skillfull analyst.
+You will be given a collection of texts. Generate a concise hypothesis
+that is true for half of the texts, and is false for the other half. The hypothesis
+must me a single assertion that can be evaluated as true or false and refers to a single text.
+"""

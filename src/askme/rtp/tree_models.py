@@ -8,6 +8,7 @@ class TreeNode(BaseModel):
     #parent: Optional['TreeNode'] = None  # Parent node
     question: Optional[str] = None  # Question used to split this node
     metrics: Optional['SplitMetrics'] = None  # Metrics for this node's split
+    blacklist: Optional[list[str]] = None  # Blacklisted questions for this node
 
 class TokenUsage(BaseModel):
     total_tokens: int = 0
