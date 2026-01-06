@@ -75,7 +75,7 @@ def build_tree_from_hdbscan(
     root = TreeNode(documents=list(range(n_samples)))
     
     # Check stopping criteria: max depth reached or node too small
-    if max_tree_depth <= 0 or n_samples < min_leaf_size:
+    if max_tree_depth <= 0 or n_samples <= min_leaf_size:
         return root
     
     # Get unique cluster labels (excluding noise points labeled as -1)
@@ -149,7 +149,7 @@ def _split_node_by_clusters(
     import numpy as np
     
     # Check stopping criteria
-    if max_tree_depth <= 0 or len(node.documents) < min_leaf_size or len(clusters) <= 1:
+    if max_tree_depth <= 0 or len(node.documents) <= min_leaf_size or len(clusters) <= 1:
         return node
     
     # Split clusters into two groups

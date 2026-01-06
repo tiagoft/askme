@@ -245,3 +245,19 @@ def test_hdbscan_combined_stop_conditions():
     # Should create a tree with limited depth
     depth = calculate_tree_depth(tree)
     assert depth <= 2
+
+
+def test_hdbscan_min_leaf_size_exact_match():
+    """Test that nodes with exactly min_leaf_size documents are not split."""
+    class MockHDBSCAN:
+        def __init__(self):
+            self.labels_ = np.array([0, 0, 1, 1])
+    
+    clusterer = MockHDBSCAN()
+    # Set min_leaf_size to 4, which exactly matches the dataset size
+    tree = build_tree_from_hdbscan(clusterer, 4, min_leaf_size=4)
+    
+    # Should NOT split because n_samples <= min_leaf_size
+    assert tree.documents == [0, 1, 2, 3]
+    assert tree.left is None
+    assert tree.right is None

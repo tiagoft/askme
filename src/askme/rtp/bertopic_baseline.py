@@ -72,7 +72,7 @@ def build_tree_from_bertopic_hierarchy(
     root = TreeNode(documents=list(range(n_samples)))
     
     # Check stopping criteria: max depth reached or node too small
-    if max_tree_depth <= 0 or n_samples < min_leaf_size:
+    if max_tree_depth <= 0 or n_samples <= min_leaf_size:
         return root
     
     # Get unique topics (excluding outliers labeled as -1)
@@ -162,7 +162,7 @@ def _build_tree_from_hierarchical_structure(
     root = TreeNode(documents=list(range(n_samples)))
     
     # Check stopping criteria
-    if max_tree_depth <= 0 or n_samples < min_leaf_size:
+    if max_tree_depth <= 0 or n_samples <= min_leaf_size:
         return root
     
     unique_topics = sorted(set(t for t in topics if t != -1))
@@ -212,7 +212,7 @@ def _split_node_by_topics(
         Updated TreeNode with children
     """
     # Check stopping criteria
-    if max_tree_depth <= 0 or len(node.documents) < min_leaf_size or len(topic_set) <= 1:
+    if max_tree_depth <= 0 or len(node.documents) <= min_leaf_size or len(topic_set) <= 1:
         return node
     
     # Split topics into two groups

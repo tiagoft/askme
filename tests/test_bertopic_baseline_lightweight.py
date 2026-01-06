@@ -222,15 +222,35 @@ def test_min_leaf_size_allows_split():
         pass
     
     topic_model = MockBERTopic()
-    # Set min_leaf_size to 2, should allow splitting
+    # Set min_leaf_size to 2, should allow splitting since we have 8 > 2 documents
     tree = build_tree_from_bertopic_hierarchy(
         topic_model, topics, n_samples, min_leaf_size=2
     )
     
-    # Should create a split since we have 8 documents
+    # Should create a split since we have 8 documents (more than min_leaf_size)
     assert len(tree.documents) == 8
     assert tree.left is not None
     assert tree.right is not None
+
+
+def test_min_leaf_size_exact_match():
+    """Test that nodes with exactly min_leaf_size documents are not split."""
+    topics = [0, 0, 1, 1]
+    n_samples = 4
+    
+    class MockBERTopic:
+        pass
+    
+    topic_model = MockBERTopic()
+    # Set min_leaf_size to 4, which exactly matches the dataset size
+    tree = build_tree_from_bertopic_hierarchy(
+        topic_model, topics, n_samples, min_leaf_size=4
+    )
+    
+    # Should NOT split because n_samples <= min_leaf_size
+    assert tree.documents == [0, 1, 2, 3]
+    assert tree.left is None
+    assert tree.right is None
 
 
 def test_combined_stop_conditions():
@@ -304,6 +324,9 @@ if __name__ == "__main__":
     
     test_min_leaf_size_allows_split()
     print("✓ test_min_leaf_size_allows_split passed")
+    
+    test_min_leaf_size_exact_match()
+    print("✓ test_min_leaf_size_exact_match passed")
     
     test_combined_stop_conditions()
     print("✓ test_combined_stop_conditions passed")
