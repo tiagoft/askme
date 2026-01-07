@@ -36,3 +36,12 @@ build-backend = "uv_build"
 
 [tool.uv.sources]
 insperdatasets = { git = "https://github.com/InsperML/insperdatasets" }
+
+[tool.pytest.ini_options]
+markers = [
+    "gpu: marks tests that require GPU",
+    "llm: marks tests that make cloud LLM API calls",
+    "slow: marks slow tests",
+    "integration: end-to-end tests",
+]
+addopts = "-m 'not (gpu or llm)'"
