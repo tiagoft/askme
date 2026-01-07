@@ -27,9 +27,9 @@ def make_faiss_index(
         embedding = embedding_model(text)
         embedding = embedding.astype('float32').reshape(1, -1)
         faiss.normalize_L2(embedding)
-        if return_embeddings:
-            embeddings.append(embedding)
-        index.add(embedding)
+        embeddings.append(embedding)
+    
+    index.add(np.vstack(embeddings))
     
     if return_embeddings:
         embeddings = np.vstack(embeddings)
