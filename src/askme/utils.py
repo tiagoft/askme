@@ -1,6 +1,7 @@
 from sentence_transformers import SentenceTransformer
 import numpy as np
 import faiss
+import pickle
 
 
 def chunk_text(
@@ -56,12 +57,31 @@ class TextEmbeddingWithChunker:
         self.chunk_size = chunk_size
         self.overlap = overlap
         self.pooling_fn = pooling_fn
+        self.cache = {}
 
     def __call__(self, text: str) -> np.ndarray:
+        if text in self.cache:
+            return self.cache[text]
         chunks = chunk_text(text, self.chunk_size, self.overlap)
-        chunk_embeddings = self.model.encode_document(chunks)
+        chunk_embeddings = self.model.encode(chunks)
         embedding = self.pooling_fn(chunk_embeddings, axis=0)
+        self.cache[text] = embedding
         return embedding
+
+    def save_cache(self, path: str, append: bool = False):
+        if append:
+            try:
+                with open(path, 'rb') as f:
+                    current_cache = pickle.load(f)
+                self.cache.update(current_cache)
+            except FileNotFoundError:
+                pass
+        with open(path, 'wb') as f:
+            pickle.dump(self.cache, f)
+
+    def load_cache(self, path: str):
+        with open(path, 'rb') as f:
+            self.cache = pickle.load(f)
 
 
 def kmeans_with_faiss(
@@ -80,11 +100,12 @@ def kmeans_with_faiss(
         spherical=True,
         gpu=False,
     )
-    kmeans.train(X)#, init_centroids=X[:n_clusters,:])
+    kmeans.train(X)  #, init_centroids=X[:n_clusters,:])
     centroids = kmeans.centroids
-    D, I = faiss_index.search(centroids, 1)  # D: distances, I: indices (shape k, 1)
+    D, I = faiss_index.search(centroids,
+                              1)  # D: distances, I: indices (shape k, 1)
 
-    medoid_indices = I.flatten()       # Indices of medoids in your original data
+    medoid_indices = I.flatten()  # Indices of medoids in your original data
     # # medoid indexes
     # # Find medoids
     # distances_to_centroids, _ = kmeans.index.search(X, k=n_clusters)
@@ -94,14 +115,20 @@ def kmeans_with_faiss(
 
 
 def true_k_medoids_faiss(
-    embeddings: np.ndarray,  # normalized if needed
-    n_clusters: int,
-    nredo: int = 10,
-    seed: int = 1234
-) -> np.ndarray:
+        embeddings: np.ndarray,  # normalized if needed
+        n_clusters: int,
+        nredo: int = 10,
+        seed: int = 1234,
+        max_docs: int = None) -> np.ndarray:
     """
     Returns indices of K unique medoids using a robust k-medoids approximation.
     """
+    if max_docs is not None and embeddings.shape[0] > max_docs:
+        np.random.seed(seed)
+        sampled_indices = np.random.choice(
+            embeddings.shape[0], max_docs, replace=False)
+        embeddings = embeddings[sampled_indices]
+        
     d = embeddings.shape[1]
     best_medoids = None
     best_inertia = np.inf
@@ -109,7 +136,9 @@ def true_k_medoids_faiss(
     for _ in range(nredo):
         # Randomly sample initial medoids
         np.random.seed(seed + _)
-        init_indices = np.random.choice(len(embeddings), n_clusters, replace=False)
+        init_indices = np.random.choice(len(embeddings),
+                                        n_clusters,
+                                        replace=False)
         init_centroids = embeddings[init_indices]
 
         # Train k-means with these as initial centroids
@@ -139,7 +168,7 @@ def true_k_medoids_faiss(
             if len(cluster_points) == 0:
                 continue
             # Compute sum of distances to all other points in cluster
-            distances = ((cluster_points - cluster_points[:, None]) ** 2).sum(-1)
+            distances = ((cluster_points - cluster_points[:, None])**2).sum(-1)
             sum_dist = distances.sum(axis=1)
             medoid_idx_in_cluster = np.argmin(sum_dist)
             medoid_candidates.append(cluster_indices[medoid_idx_in_cluster])

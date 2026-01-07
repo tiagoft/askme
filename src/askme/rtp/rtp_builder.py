@@ -12,6 +12,7 @@ from .tree_models import TreeNode, SplitMetrics
 from ..utils import TextEmbeddingWithChunker, kmeans_with_faiss, true_k_medoids_faiss
 from ..makequestions import api, makequestion
 from ..askquestions import check_entailment, models
+from pathlib import Path
 
 
 class RTPBuilder:
@@ -66,6 +67,7 @@ class RTPBuilder:
         min_split_ratio: Optional[float] = None,
         max_split_ratio: Optional[float] = None,
         verbose: bool = False,
+        cache_dir: str | None = None,
     ):
         """
         Initialize the RTPBuilder with all necessary models.
@@ -105,6 +107,8 @@ class RTPBuilder:
         self.min_split_ratio = min_split_ratio
         self.max_split_ratio = max_split_ratio
         self.verbose = verbose
+        
+
 
         # Determine device
         device = 'cuda' if use_gpu else 'cpu'
@@ -121,6 +125,26 @@ class RTPBuilder:
             overlap=overlap,
             device=device,
         )
+
+        if cache_dir is not None:
+            self.cache_dir = Path(cache_dir).expanduser()
+            self.cache_dir.mkdir(parents=True, exist_ok=True)
+        else:
+            self.cache_dir = None
+
+        if self.cache_dir is not None:
+            self.embedding_model.save_cache(
+                str(self.cache_dir / 'embedding_cache.pkl'), append=True)
+            
+            self.embedding_model.load_cache(
+                str(self.cache_dir / 'embedding_cache.pkl'))
+            if verbose:
+                print(
+                    f"Loaded embedding cache from {self.cache_dir / 'embedding_cache.pkl'}"
+                )
+                print(
+                    f"Cache contiains {len(self.embedding_model.cache)} entries."
+                )
 
         # Initialize NLI model
         self.nli_model, self.nli_tokenizer = models.make_nli_model(
@@ -175,6 +199,9 @@ class RTPBuilder:
             return_embeddings=True,
             gpu_resources=self.gpu_resources,
         )
+        if self.cache_dir is not None:
+            self.embedding_model.save_cache(
+                str(self.cache_dir / 'embedding_cache.pkl'))
         metrics.faiss_search_time_ms = (time.time() - faiss_start) * 1000
 
         # Step 2: Get medoids via k-means for hypothesis generation
@@ -191,13 +218,13 @@ class RTPBuilder:
             embeddings=embeddings,
             n_clusters=n_clusters,
             nredo=5,
-            seed=1234,
+            seed=5432,
+            max_docs=10000
         )
         medoids = [text_collection[idx] for idx in medoid_indices]
 
         if self.verbose:
             print(f"Medoid indices: {medoid_indices}")
-
 
         #            print(f"Medoids: {medoids}")
 
@@ -208,7 +235,7 @@ class RTPBuilder:
             blacklist = initial_blacklist
         else:
             blacklist = []
-       
+
         hypothesis = None
         propagated_labels = None
         left_docs = []
@@ -233,19 +260,18 @@ class RTPBuilder:
                 print("Returning leaf node with all documents.")
                 root = TreeNode(
                     documents=list(range(len(text_collection))),
-                    question=None,)
+                    question=None,
+                )
                 if return_metrics:
                     return root, metrics
                 return root
-                         # Track LLM tokens
+                # Track LLM tokens
             metrics.llm_input_tokens += response.usage().input_tokens
             metrics.llm_output_tokens += response.usage().output_tokens
             hypothesis = response.output.hypothesis
             metrics.llm_request_time += (time.time() - llm_start) * 1000
             if self.verbose:
                 print(f"Generated hypothesis: {hypothesis}")
-
-
 
             # Step 4: Use NLI to answer the question for selected documents
 
@@ -268,7 +294,8 @@ class RTPBuilder:
                 doc_indices = true_k_medoids_faiss(embeddings=embeddings,
                                                    n_clusters=n_docs_to_label,
                                                    nredo=5,
-                                                   seed=1234)
+                                                   seed=1234,
+                                                   max_docs=10000)
 
             # Initialize labels as unlabeled (-1)
             answers = -np.ones((len(text_collection), ), dtype=object)
@@ -358,6 +385,13 @@ class RTPBuilder:
 
             # If split is valid or we've exhausted retries, stop
             if split_is_valid or attempt == self.max_retries:
+                if self.verbose:
+                    print("Accepting hypothesis and split.")
+                    print(f"Split ratio: {split_ratio:.3f}")
+                    print(
+                        f"Left documents: {len(left_docs)}, Right documents: {len(right_docs)}"
+                    )
+                    print(f"Retries: {attempt}")
                 break
 
             # Otherwise, add this hypothesis to the blacklist and retry
@@ -487,9 +521,10 @@ class RTPRecursion:
             return TreeNode(documents=document_indices), SplitMetrics()
 
         # Execute RTPBuilder for current node
-        node_root, node_metrics = self.builder(node_documents,
-                                               return_metrics=True,
-                                               initial_blacklist=current_blacklist)
+        node_root, node_metrics = self.builder(
+            node_documents,
+            return_metrics=True,
+            initial_blacklist=current_blacklist)
 
         # Create tree node with original document indices
         node_root.metrics = node_metrics

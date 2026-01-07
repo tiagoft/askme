@@ -3,7 +3,7 @@ import numpy as np
 from typing import Optional
 from ..utils import TextEmbeddingWithChunker
 from collections.abc import Iterable
-
+from tqdm import tqdm
 
 def make_faiss_index(
     text_collection: Iterable[str],
@@ -23,7 +23,7 @@ def make_faiss_index(
         
     embeddings = []
     
-    for text in text_collection:
+    for text in tqdm(text_collection, desc="Embedding texts"):
         embedding = embedding_model(text)
         embedding = embedding.astype('float32').reshape(1, -1)
         if return_embeddings:

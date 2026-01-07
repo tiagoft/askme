@@ -40,7 +40,7 @@ def load_agnews_sample(n_samples: int | None = 500, seed: int = 42) -> Tuple[Lis
         Tuple of (texts, labels)
     """
     print(f"Loading {n_samples} samples from AG News dataset...")
-    dataset = load_dataset('fancyzhx/ag_news', split='test')
+    dataset = load_dataset('fancyzhx/ag_news', split='train')
     
     # Set random seed for reproducibility
     np.random.seed(seed)
@@ -122,6 +122,7 @@ def run_rtp_evaluation(texts: List[str], labels: List[int]):
         max_split_ratio=0.9,
         alpha=1e-2,
         verbose=True,
+        cache_dir='~/.askme_cache',
     )
     print("RTPBuilder initialized!")
     
@@ -133,6 +134,7 @@ def run_rtp_evaluation(texts: List[str], labels: List[int]):
         min_split_ratio=0.1,   # Split should have at least 10% in smaller child
         max_split_ratio=0.9,   # Split should have at most 90% in larger child
         max_depth=4,           # Maximum tree depth
+        
     )
     print("RTPRecursion initialized!")
     
