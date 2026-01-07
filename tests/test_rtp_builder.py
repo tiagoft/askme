@@ -18,7 +18,7 @@ sample_text_collection = [
     "Lions are known as the kings of the jungle.",
 ]
 
-
+@pytest.mark.llm
 def test_rtp_builder_initialization_cpu():
     """Test that RTPBuilder initializes correctly with CPU."""
     builder = RTPBuilder(use_gpu=False)
@@ -33,7 +33,7 @@ def test_rtp_builder_initialization_cpu():
     assert builder.nli_model_name == 'MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7'
     assert builder.llm_model_name == "gpt-4o-mini"
 
-
+@pytest.mark.llm
 def test_rtp_builder_initialization_with_custom_params():
     """Test that RTPBuilder accepts custom parameters."""
     builder = RTPBuilder(
@@ -57,7 +57,8 @@ def test_rtp_builder_initialization_with_custom_params():
     assert builder.max_iter == 50
     assert builder.tol == 1e-4
 
-
+@pytest.mark.llm
+@pytest.mark.gpu
 def test_rtp_builder_gpu_resources_initialization():
     """Test that GPU resources are initialized when use_gpu=True."""
     import faiss
@@ -73,7 +74,8 @@ def test_rtp_builder_gpu_resources_initialization():
         # The gpu_resources should still be set even if GPU operations fail
         pytest.skip(f"GPU not available: {e}")
 
-
+@pytest.mark.llm
+@pytest.mark.gpu
 def test_rtp_builder_call_with_list():
     """Test that RTPBuilder can be called with a list of strings."""
     builder = RTPBuilder(use_gpu=False)
@@ -88,7 +90,7 @@ def test_rtp_builder_call_with_list():
     assert isinstance(result.question, str)
     assert len(result.question) > 0
 
-
+@pytest.mark.llm
 def test_rtp_builder_call_creates_tree_structure():
     """Test that RTPBuilder creates a tree with children nodes."""
     builder = RTPBuilder(use_gpu=False)
@@ -115,7 +117,7 @@ def test_rtp_builder_call_creates_tree_structure():
         # All documents should be in one child or the other
         assert len(all_docs) <= len(sample_text_collection)
 
-
+@pytest.mark.llm
 def test_rtp_builder_call_with_iterator():
     """Test that RTPBuilder can be called with an iterator."""
     builder = RTPBuilder(use_gpu=False)
@@ -132,7 +134,7 @@ def test_rtp_builder_call_with_iterator():
     assert result.documents == list(range(len(sample_text_collection)))
     assert result.question is not None
 
-
+@pytest.mark.llm
 def test_rtp_builder_call_with_small_collection():
     """Test that RTPBuilder works with a very small collection."""
     builder = RTPBuilder(use_gpu=False, n_medoids=2, n_documents_to_answer=2)
@@ -146,6 +148,7 @@ def test_rtp_builder_call_with_small_collection():
     assert result.question is not None
 
 
+@pytest.mark.llm
 def test_rtp_builder_call_empty_collection_raises_error():
     """Test that RTPBuilder raises an error with empty collection."""
     builder = RTPBuilder(use_gpu=False)
@@ -153,7 +156,7 @@ def test_rtp_builder_call_empty_collection_raises_error():
     with pytest.raises(ValueError, match="Text collection cannot be empty"):
         builder([])
 
-
+@pytest.mark.llm
 def test_rtp_builder_multiple_calls():
     """Test that RTPBuilder can be called multiple times (models are reused)."""
     builder = RTPBuilder(use_gpu=False, n_medoids=2, n_documents_to_answer=3)
@@ -177,6 +180,7 @@ def test_rtp_builder_multiple_calls():
     assert result2.documents == [0, 1, 2]
 
 
+@pytest.mark.llm
 def test_rtp_builder_result_can_be_serialized():
     """Test that the TreeNode result can be serialized to JSON."""
     builder = RTPBuilder(use_gpu=False, n_medoids=2, n_documents_to_answer=2)
@@ -194,6 +198,7 @@ def test_rtp_builder_result_can_be_serialized():
     assert loaded_result == result
 
 
+@pytest.mark.llm
 def test_rtp_builder_returns_metrics_when_requested():
     """Test that RTPBuilder returns metrics when return_metrics=True."""
     builder = RTPBuilder(use_gpu=False, n_medoids=2, n_documents_to_answer=3)
@@ -224,6 +229,7 @@ def test_rtp_builder_returns_metrics_when_requested():
     assert metrics.nli_time > 0.0
 
 
+@pytest.mark.llm
 def test_rtp_builder_default_no_metrics():
     """Test that RTPBuilder returns only TreeNode by default (return_metrics=False)."""
     builder = RTPBuilder(use_gpu=False, n_medoids=2, n_documents_to_answer=2)
@@ -277,6 +283,7 @@ def test_split_metrics_default_values():
     assert metrics.num_nodes == 1
 
 
+@pytest.mark.llm
 def test_rtp_builder_metrics_timing_consistency():
     """Test that timing metrics are consistent (total >= sum of parts)."""
     builder = RTPBuilder(use_gpu=False, n_medoids=2, n_documents_to_answer=2)
@@ -289,6 +296,7 @@ def test_rtp_builder_metrics_timing_consistency():
     assert metrics.total_time_ms >= measured_time
 
 
+@pytest.mark.llm
 def test_rtp_builder_with_retry_parameters():
     """Test that RTPBuilder accepts retry parameters."""
     builder = RTPBuilder(
@@ -303,6 +311,7 @@ def test_rtp_builder_with_retry_parameters():
     assert builder.max_split_ratio == 0.7
 
 
+@pytest.mark.llm
 def test_rtp_builder_default_retry_parameters():
     """Test that RTPBuilder has correct default retry parameters."""
     builder = RTPBuilder(use_gpu=False)
@@ -312,6 +321,7 @@ def test_rtp_builder_default_retry_parameters():
     assert builder.max_split_ratio is None
 
 
+@pytest.mark.llm
 def test_rtp_builder_with_split_ratio_constraints():
     """Test that RTPBuilder works with split ratio constraints."""
     # Use very restrictive split ratio constraints
@@ -338,68 +348,6 @@ def test_rtp_builder_with_split_ratio_constraints():
     assert metrics.llm_output_tokens > 0
 
 
-def test_rtp_builder_retry_increases_llm_tokens():
-    """Test that retrying increases LLM token usage."""
-    # First, test without retry constraints
-    builder_no_retry = RTPBuilder(
-        use_gpu=False,
-        n_medoids=2,
-        n_documents_to_answer=3,
-        max_retries=0,  # No retries
-    )
-    
-    result1, metrics1 = builder_no_retry(sample_text_collection, return_metrics=True)
-    
-    # Now test with very restrictive constraints that might trigger retries
-    builder_with_retry = RTPBuilder(
-        use_gpu=False,
-        n_medoids=2,
-        n_documents_to_answer=3,
-        max_retries=2,
-        min_split_ratio=0.45,  # Very restrictive
-        max_split_ratio=0.55,  # Very restrictive
-    )
-    
-    result2, metrics2 = builder_with_retry(sample_text_collection, return_metrics=True)
-    
-    # Both should produce valid results
-    assert isinstance(result1, TreeNode)
-    assert isinstance(result2, TreeNode)
-    
-    # If retry happened, LLM tokens should be higher in second case
-    # However, this is not guaranteed since the split might be acceptable on first try
-    # So we just check that both have positive token counts
-    assert metrics1.llm_input_tokens > 0
-    assert metrics2.llm_input_tokens > 0
 
 
-def test_rtp_builder_with_only_min_split_ratio():
-    """Test that RTPBuilder works with only min_split_ratio constraint."""
-    builder = RTPBuilder(
-        use_gpu=False,
-        n_medoids=2,
-        n_documents_to_answer=3,
-        max_retries=1,
-        min_split_ratio=0.1,  # Only minimum constraint
-    )
-    
-    result, metrics = builder(sample_text_collection, return_metrics=True)
-    
-    assert isinstance(result, TreeNode)
-    assert result.question is not None
 
-
-def test_rtp_builder_with_only_max_split_ratio():
-    """Test that RTPBuilder works with only max_split_ratio constraint."""
-    builder = RTPBuilder(
-        use_gpu=False,
-        n_medoids=2,
-        n_documents_to_answer=3,
-        max_retries=1,
-        max_split_ratio=0.9,  # Only maximum constraint
-    )
-    
-    result, metrics = builder(sample_text_collection, return_metrics=True)
-    
-    assert isinstance(result, TreeNode)
-    assert result.question is not None

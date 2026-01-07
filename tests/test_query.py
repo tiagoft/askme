@@ -19,7 +19,7 @@ sample_text_collection = [
     "Lions are known as the kings of the jungle.",
 ]
 
-
+@pytest.mark.llm
 def test_query_returns_leaf_node():
     """Test that query returns a leaf node."""
     # Build a tree
@@ -39,7 +39,7 @@ def test_query_returns_leaf_node():
     assert leaf.right is None
     assert len(leaf.documents) > 0
 
-
+@pytest.mark.llm
 def test_query_with_document_similar_to_training():
     """Test query with a document similar to training documents."""
     # Build a tree
@@ -58,7 +58,7 @@ def test_query_with_document_similar_to_training():
     assert leaf.left is None
     assert leaf.right is None
 
-
+@pytest.mark.llm
 def test_query_with_different_document():
     """Test query with a document different from training documents."""
     # Build a tree
@@ -77,7 +77,7 @@ def test_query_with_different_document():
     assert leaf.left is None
     assert leaf.right is None
 
-
+@pytest.mark.gpu
 def test_query_with_single_node_tree():
     """Test query with a tree that has no children (single leaf)."""
     # Create a simple tree with no split
@@ -99,7 +99,7 @@ def test_query_with_single_node_tree():
     assert leaf == simple_tree
     assert leaf.documents == [0, 1, 2]
 
-
+@pytest.mark.gpu
 def test_query_with_two_level_tree():
     """Test query with a manually constructed two-level tree."""
     # Create a two-level tree manually
@@ -133,7 +133,7 @@ def test_query_with_two_level_tree():
     assert leaf2.left is None
     assert leaf2.right is None
 
-
+@pytest.mark.gpu
 def test_query_raises_error_on_none_tree():
     """Test that query raises ValueError when tree_root is None."""
     # Initialize NLI model
@@ -142,7 +142,7 @@ def test_query_raises_error_on_none_tree():
     with pytest.raises(ValueError, match="tree_root cannot be None"):
         query("Any document", None, nli_model, nli_tokenizer)
 
-
+@pytest.mark.gpu
 def test_query_raises_error_on_empty_tree():
     """Test that query raises ValueError when tree has no documents."""
     # Create a tree with no documents
@@ -154,7 +154,7 @@ def test_query_raises_error_on_empty_tree():
     with pytest.raises(ValueError, match="must have at least one document"):
         query("Any document", empty_tree, nli_model, nli_tokenizer)
 
-
+@pytest.mark.llm
 def test_query_with_custom_chunk_parameters():
     """Test query with custom chunk_size and overlap parameters."""
     # Build a tree
@@ -181,7 +181,7 @@ def test_query_with_custom_chunk_parameters():
     assert leaf.left is None
     assert leaf.right is None
 
-
+@pytest.mark.llm
 def test_query_consistency():
     """Test that querying the same document multiple times gives consistent results."""
     # Build a tree
@@ -201,7 +201,8 @@ def test_query_consistency():
     assert leaf1.documents == leaf2.documents
     assert leaf2.documents == leaf3.documents
 
-
+@pytest.mark.llm
+@pytest.mark.gpu
 def test_query_with_long_document():
     """Test query with a long document that requires chunking."""
     # Build a tree
@@ -247,7 +248,8 @@ def test_query_uses_existing_nli_functions():
     # Verify it uses check_entailment_nli
     assert "check_entailment.check_entailment_nli" in source
 
-
+@pytest.mark.llm
+@pytest.mark.gpu
 def test_query_multiple_documents_on_same_tree():
     """Test querying multiple different documents on the same tree."""
     # Build a tree
