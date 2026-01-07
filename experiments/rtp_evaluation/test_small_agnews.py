@@ -115,11 +115,11 @@ def run_rtp_evaluation(texts: List[str], labels: List[int]):
     builder = RTPBuilder(
         use_gpu=True,
         n_medoids=15,
-        n_documents_to_answer=200,
-        llm_model_name='gpt-oss:20b',
+        n_documents_to_answer=10000,
+        llm_model_name='qwen3:14b',
         max_retries=10,
-        min_split_ratio=0.1,
-        max_split_ratio=0.9,
+        min_split_ratio=0.01,
+        max_split_ratio=0.99,
         alpha=1e-2,
         verbose=True,
         cache_dir='~/.askme_cache',
@@ -417,8 +417,10 @@ def main():
     with open("rtp_tree_on_small_agnews.json", 'w') as f:
         f.write(json_string)
     
-    pdf_path = tree_to_pdf.tree_to_pdf(rtp_tree, output_path="tree_agnews_rtp.pdf")
+    pdf_path = tree_to_pdf.tree_to_pdf(rtp_tree, output_path="tree_agnews_rtp")
     print(f"PDF saved to: {pdf_path}")
+    
+    exit()
     
     # Run HDBSCAN evaluation
     hdbscan_tree, hdbscan_results, hdbscan_embeddings = run_hdbscan_evaluation(texts, labels)
