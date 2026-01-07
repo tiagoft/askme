@@ -80,9 +80,11 @@ class TextEmbeddingWithChunker:
             pickle.dump(self.cache, f)
 
     def load_cache(self, path: str):
-        with open(path, 'rb') as f:
-            self.cache = pickle.load(f)
-
+        try:
+            with open(path, 'rb') as f:
+                self.cache = pickle.load(f)
+        except FileNotFoundError:
+            return {}
 
 def kmeans_with_faiss(
     faiss_index: faiss.Index,

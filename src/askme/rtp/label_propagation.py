@@ -56,7 +56,7 @@ def make_knn_graph(
     distances, indices = index.search(X, k_search)
 
     # Remove the first neighbor (which is always the point itself, distance ≈ 0)
-    distances = distances[:, 1:]   # shape: (n_vectors, n_neighbors)
+    distances = 1 - distances[:, 1:]   # shape: (n_vectors, n_neighbors)
     indices = indices[:, 1:]       # shape: (n_vectors, n_neighbors)
 
     return indices, distances

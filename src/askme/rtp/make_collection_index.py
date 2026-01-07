@@ -14,7 +14,7 @@ def make_faiss_index(
     gpu_resources: Optional[faiss.StandardGpuResources] = None,
 ) -> faiss.Index | tuple[faiss.Index, np.ndarray]:
     
-    index = faiss.IndexFlatL2(dimension)
+    index = faiss.IndexFlatIP(dimension)
     
     if use_gpu:
         if gpu_resources is None:
@@ -26,6 +26,7 @@ def make_faiss_index(
     for text in tqdm(text_collection, desc="Embedding texts"):
         embedding = embedding_model(text)
         embedding = embedding.astype('float32').reshape(1, -1)
+        faiss.normalize_L2(embedding)
         if return_embeddings:
             embeddings.append(embedding)
         index.add(embedding)

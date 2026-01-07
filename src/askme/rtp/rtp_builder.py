@@ -58,7 +58,7 @@ class RTPBuilder:
         chunk_size: int = 50,
         overlap: int = 10,
         n_medoids: int = 4,
-        n_documents_to_answer: Union[int, str, float] = 'same',
+        n_documents_to_answer: Union[int, str, float] = 'all',
         knn_neighbors: int = 2,
         alpha: float = 0.99,
         max_iter: int = 100,
@@ -133,8 +133,6 @@ class RTPBuilder:
             self.cache_dir = None
 
         if self.cache_dir is not None:
-            self.embedding_model.save_cache(
-                str(self.cache_dir / 'embedding_cache.pkl'), append=True)
             
             self.embedding_model.load_cache(
                 str(self.cache_dir / 'embedding_cache.pkl'))
@@ -209,18 +207,18 @@ class RTPBuilder:
             print("Selecting medoids via k-means...")
 
         n_clusters = min(self.n_medoids, len(text_collection))
-        # medoid_indices = kmeans_with_faiss(
-        #     faiss_index=faiss_index,
-        #     X=embeddings,
-        #     n_clusters=n_clusters,
-        # )
-        medoid_indices = true_k_medoids_faiss(
-            embeddings=embeddings,
+        medoid_indices = kmeans_with_faiss(
+            faiss_index=faiss_index,
+            X=embeddings,
             n_clusters=n_clusters,
-            nredo=5,
-            seed=5432,
-            max_docs=10000
         )
+        # medoid_indices = true_k_medoids_faiss(
+        #     embeddings=embeddings,
+        #     n_clusters=n_clusters,
+        #     nredo=5,
+        #     seed=5432,
+        #     max_docs=10000
+        # )
         medoids = [text_collection[idx] for idx in medoid_indices]
 
         if self.verbose:
@@ -278,6 +276,9 @@ class RTPBuilder:
             if self.n_documents_to_answer == 'same':
                 n_docs_to_label = n_clusters
                 doc_indices = medoid_indices
+            elif self.n_documents_to_answer == 'all':
+                doc_indices = list(range(len(text_collection)))
+                n_docs_to_label = len(text_collection)
             else:
                 if isinstance(self.n_documents_to_answer, float):
                     n_docs_to_label = int(self.n_documents_to_answer *
@@ -285,17 +286,18 @@ class RTPBuilder:
                 else:
                     n_docs_to_label = int(self.n_documents_to_answer)
                 n_docs_to_label = min(n_docs_to_label, len(text_collection))
-                # doc_indices = kmeans_with_faiss(
-                #     faiss_index=faiss_index,
-                #     X=embeddings,
-                #     n_clusters=n_docs_to_label,
-                # )
+                print("Finding documents to label via k-means...")
+                doc_indices = kmeans_with_faiss(
+                    faiss_index=faiss_index,
+                    X=embeddings,
+                    n_clusters=n_docs_to_label,
+                )
 
-                doc_indices = true_k_medoids_faiss(embeddings=embeddings,
-                                                   n_clusters=n_docs_to_label,
-                                                   nredo=5,
-                                                   seed=1234,
-                                                   max_docs=10000)
+                # doc_indices = true_k_medoids_faiss(embeddings=embeddings,
+                #                                    n_clusters=n_docs_to_label,
+                #                                    nredo=5,
+                #                                    seed=1234,
+                #                                    max_docs=10000)
 
             # Initialize labels as unlabeled (-1)
             answers = -np.ones((len(text_collection), ), dtype=object)
@@ -303,7 +305,7 @@ class RTPBuilder:
             device = 'cuda' if self.use_gpu else 'cpu'
             nli_confidences = []
             nli_start = time.time()
-            for doc_index in doc_indices:
+            for doc_index in tqdm(doc_indices):
                 document = text_collection[doc_index]
                 pooled_results = check_entailment.pool_nli_scores(
                     check_fn=check_entailment.check_entailment_nli,

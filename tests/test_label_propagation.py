@@ -10,7 +10,7 @@ def test_label_propagation():
     # Create a simple FAISS index with known embeddings
     
     dimension = 4
-    index = faiss.IndexFlatL2(dimension)
+    index = faiss.IndexFlatIP(dimension)
     embeddings = [
         [1.0, 0.0, 0.0, 0.0],  # Point 0
         [0.9, 0.1, 0.0, 0.0],  # Point 1
@@ -18,7 +18,10 @@ def test_label_propagation():
         [0.0, 0.9, 0.1, 0.0],  # Point 3
         [0.0, 0.0, 0.0, 1.0],  # Point 4
     ]
-    index.add(np.array(embeddings).astype('float32'))
+    
+    embeddings = np.array(embeddings).astype('float32')
+    faiss.normalize_L2(embeddings)
+    index.add(embeddings)
     
     indices, distances = make_knn_graph(np.array(embeddings).astype('float32'), index, n_neighbors=2)
     W = sparse_affinity(indices, distances, sigma=1.0)
@@ -26,7 +29,7 @@ def test_label_propagation():
     # Labels: -1 for unlabeled, class index otherwise
     y = np.array([0, -1, 1, -1, -1])
     
-    F = propagate_labels(W, y, alpha=0.99, max_iter=100, tol=1e-3)
+    F = propagate_labels(W, y, alpha=0.01, max_iter=100, tol=1e-3)
     
     # Check that labels have been propagated correctly
     predicted_labels = F
