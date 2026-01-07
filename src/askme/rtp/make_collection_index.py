@@ -29,10 +29,10 @@ def make_faiss_index(
         faiss.normalize_L2(embedding)
         embeddings.append(embedding)
     
-    index.add(np.vstack(embeddings))
+    embeddings = np.vstack(embeddings)
+    index.add(embeddings)
     
     if return_embeddings:
-        embeddings = np.vstack(embeddings)
         return index, embeddings
     return index
 

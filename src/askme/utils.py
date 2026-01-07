@@ -95,12 +95,13 @@ def kmeans_with_faiss(
     kmeans = faiss.Kmeans(
         d=faiss_index.d,
         k=n_clusters,
-        niter=500,
-        nredo=10,
-        verbose=False,
+        niter=50,
+        nredo=5,
+        verbose=True,
         seed=1234,
         spherical=True,
-        gpu=False,
+        gpu=True,
+        
     )
     kmeans.train(X)  #, init_centroids=X[:n_clusters,:])
     centroids = kmeans.centroids

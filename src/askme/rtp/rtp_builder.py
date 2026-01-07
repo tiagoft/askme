@@ -5,6 +5,7 @@ import numpy as np
 import time
 from collections.abc import Iterable
 from typing import Optional, Union
+from tqdm import tqdm
 
 from .make_collection_index import make_faiss_index
 from .label_propagation import propagate_labels, make_knn_graph, sparse_affinity
@@ -179,6 +180,7 @@ class RTPBuilder:
 
         # Convert iterable to list to allow indexing
         text_collection = list(X)
+        
 
         if len(text_collection) == 0:
             raise ValueError("Text collection cannot be empty")
@@ -239,6 +241,7 @@ class RTPBuilder:
         left_docs = []
         right_docs = []
 
+        doc_indices = []
         for attempt in range(self.max_retries + 1):
             if self.verbose:
                 print(
@@ -287,11 +290,12 @@ class RTPBuilder:
                     n_docs_to_label = int(self.n_documents_to_answer)
                 n_docs_to_label = min(n_docs_to_label, len(text_collection))
                 print("Finding documents to label via k-means...")
-                doc_indices = kmeans_with_faiss(
-                    faiss_index=faiss_index,
-                    X=embeddings,
-                    n_clusters=n_docs_to_label,
-                )
+                if len(doc_indices) == 0:
+                    doc_indices = kmeans_with_faiss(
+                        faiss_index=faiss_index,
+                        X=embeddings,
+                        n_clusters=n_docs_to_label,
+                    )
 
                 # doc_indices = true_k_medoids_faiss(embeddings=embeddings,
                 #                                    n_clusters=n_docs_to_label,
