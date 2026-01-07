@@ -28,7 +28,7 @@ import numpy as np
 from typing import List, Tuple
 
 
-def load_agnews_sample(n_samples: int = 500, seed: int = 42) -> Tuple[List[str], List[int]]:
+def load_agnews_sample(n_samples: int | None = 500, seed: int = 42) -> Tuple[List[str], List[int]]:
     """
     Load a sample of n documents from the AG News dataset.
     
@@ -47,6 +47,8 @@ def load_agnews_sample(n_samples: int = 500, seed: int = 42) -> Tuple[List[str],
     
     # Sample n_samples indices
     total_size = len(dataset)
+    if n_samples is None:
+        n_samples = total_size
     indices = np.random.choice(total_size, size=min(n_samples, total_size), replace=False)
     
     # Extract texts and labels
@@ -111,10 +113,11 @@ def run_rtp_evaluation(texts: List[str], labels: List[int]):
     # Initialize RTPBuilder
     print("\nInitializing RTPBuilder...")
     builder = RTPBuilder(
-        use_gpu=False,
-        n_medoids=20,
-        n_documents_to_answer='same',
-        max_retries=5,
+        use_gpu=True,
+        n_medoids=15,
+        n_documents_to_answer=200,
+        llm_model_name='gpt-oss:20b',
+        max_retries=10,
         min_split_ratio=0.1,
         max_split_ratio=0.9,
         alpha=1e-2,
@@ -129,7 +132,7 @@ def run_rtp_evaluation(texts: List[str], labels: List[int]):
         min_node_size=30,       # Don't split nodes with fewer than 5 documents
         min_split_ratio=0.1,   # Split should have at least 10% in smaller child
         max_split_ratio=0.9,   # Split should have at most 90% in larger child
-        max_depth=10,           # Maximum tree depth
+        max_depth=4,           # Maximum tree depth
     )
     print("RTPRecursion initialized!")
     
@@ -173,13 +176,13 @@ def run_rtp_evaluation(texts: List[str], labels: List[int]):
     print(f"Average leaf purity: {results['average_leaf_purity']:.4f}")
     print(f"Average leaf entropy: {results['average_leaf_entropy']:.4f}")
     
-    print("\nLeaf Purities (by leaf):")
-    for leaf_id, purity in results['leaf_purities'].items():
-        print(f"  Leaf {leaf_id}: {purity:.4f}")
+    # print("\nLeaf Purities (by leaf):")
+    # for leaf_id, purity in results['leaf_purities'].items():
+    #     print(f"  Leaf {leaf_id}: {purity:.4f}")
     
-    print("\nLeaf Entropies (by leaf):")
-    for leaf_id, entropy in results['leaf_entropies'].items():
-        print(f"  Leaf {leaf_id}: {entropy:.4f}")
+    # print("\nLeaf Entropies (by leaf):")
+    # for leaf_id, entropy in results['leaf_entropies'].items():
+    #     print(f"  Leaf {leaf_id}: {entropy:.4f}")
     
     print("\nIsolation Depths (by class):")
     class_names = ["World", "Sports", "Business", "Sci/Tech"]
@@ -189,8 +192,7 @@ def run_rtp_evaluation(texts: List[str], labels: List[int]):
             print(f"  {class_name}: isolated at depth {iso_depth}")
         else:
             print(f"  {class_name}: never fully isolated")
-    pdf_path = tree_to_pdf.tree_to_pdf(tree_root, output_path="tree_agnews_rtp.pdf")
-    print(f"PDF saved to: {pdf_path}")
+
     return tree_root, results, global_metrics
 
 
@@ -213,6 +215,7 @@ def run_hdbscan_evaluation(texts: List[str], labels: List[int]):
         texts,
         model_name="all-MiniLM-L6-v2",
         min_leaf_size=30,
+        max_tree_depth=4,
         device="cpu",
     )
     
@@ -271,6 +274,7 @@ def run_bertopic_evaluation(texts: List[str], labels: List[int]):
         model_name="all-MiniLM-L6-v2",
         nr_topics="auto",
         min_leaf_size=30,
+        max_tree_depth=4,
         device="cpu",
     )
     
@@ -400,16 +404,19 @@ def main():
     print("=" * 80)
     
     # Load dataset
-    texts, labels = load_agnews_sample(n_samples=2500, seed=42)
+    texts, labels = load_agnews_sample(n_samples=None, seed=42)
     
     # # Run RTP evaluation
-    # rtp_tree, rtp_results, rtp_metrics = run_rtp_evaluation(texts, labels)
+    rtp_tree, rtp_results, rtp_metrics = run_rtp_evaluation(texts, labels)
     
-    # # Save the rtp_tree for further analysis if needed
-    # json_string = rtp_tree.model_dump_json()
+    # Save the rtp_tree for further analysis if needed
+    json_string = rtp_tree.model_dump_json()
     
-    # with open("rtp_tree_on_small_agnews.json", 'w') as f:
-    #     f.write(json_string)
+    with open("rtp_tree_on_small_agnews.json", 'w') as f:
+        f.write(json_string)
+    
+    pdf_path = tree_to_pdf.tree_to_pdf(rtp_tree, output_path="tree_agnews_rtp.pdf")
+    print(f"PDF saved to: {pdf_path}")
     
     # Run HDBSCAN evaluation
     hdbscan_tree, hdbscan_results, hdbscan_embeddings = run_hdbscan_evaluation(texts, labels)
@@ -418,13 +425,13 @@ def main():
     bertopic_tree, bertopic_results, bertopic_embeddings, topic_model = run_bertopic_evaluation(texts, labels)
     
     # # Compare results
-    # compare_results(rtp_results, hdbscan_results, bertopic_results, 
-    #                rtp_metrics, rtp_tree, hdbscan_tree, bertopic_tree)
+    compare_results(rtp_results, hdbscan_results, bertopic_results, 
+                   rtp_metrics, rtp_tree, hdbscan_tree, bertopic_tree)
     
     
     # Compare results
-    compare_results(None, hdbscan_results, bertopic_results, 
-                   None, None, hdbscan_tree, bertopic_tree)
+    # compare_results(None, hdbscan_results, bertopic_results, 
+    #                None, None, hdbscan_tree, bertopic_tree)
     print("\n" + "=" * 80)
     print("EVALUATION COMPLETE")
     print("=" * 80)

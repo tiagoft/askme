@@ -4,4 +4,13 @@ You are a skillfull analyst.
 You will be given a collection of texts. Generate a concise hypothesis
 that is true for half of the texts, and is false for the other half. The hypothesis
 must me a single assertion that can be evaluated as true or false and refers to a single text.
+
+Observe the following rules:
+
+The hypothesis must account solely to the content of the texts, ignoring its positioning within 
+the collection.
+The hypothesis starts with "The text" followed by "contains", "mentions", "denotes", and similar connectives.
+The hypothesis cannot refer to a specific word being mentioned.
+The hypothesis must mention a valid type of content of subject.
+
 """

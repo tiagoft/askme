@@ -129,7 +129,10 @@ class RTPBuilder:
             self.nli_model = self.nli_model.to('cuda')
 
         # Initialize LLM model
-        self.llm_model = api.make_model(llm_model_name)
+        if llm_model_name.startswith('gpt-4o'):
+            self.llm_model = api.make_azure_model(llm_model_name)
+        else:
+            self.llm_model = api.make_ollama_model(llm_model_name)
 
     def __call__(
         self,
@@ -218,21 +221,31 @@ class RTPBuilder:
                 )
             # Step 3: Generate hypothesis using LLM
             llm_start = time.time()
-            response = makequestion.make_a_question_about_collection(
-                collection=medoids,
-                model=self.llm_model,
-                retries=5,
-                blacklist=blacklist,
-            )
+            try:
+                response = makequestion.make_a_question_about_collection(
+                    collection=medoids,
+                    model=self.llm_model,
+                    retries=15,
+                    blacklist=blacklist,
+                )
+            except:
+                print("LLM call failed during hypothesis generation.")
+                print("Returning leaf node with all documents.")
+                root = TreeNode(
+                    documents=list(range(len(text_collection))),
+                    question=None,)
+                if return_metrics:
+                    return root, metrics
+                return root
+                         # Track LLM tokens
+            metrics.llm_input_tokens += response.usage().input_tokens
+            metrics.llm_output_tokens += response.usage().output_tokens
             hypothesis = response.output.hypothesis
             metrics.llm_request_time += (time.time() - llm_start) * 1000
-
             if self.verbose:
                 print(f"Generated hypothesis: {hypothesis}")
 
-            # Track LLM tokens
-            metrics.llm_input_tokens += response.usage().input_tokens
-            metrics.llm_output_tokens += response.usage().output_tokens
+
 
             # Step 4: Use NLI to answer the question for selected documents
 
