@@ -86,6 +86,25 @@ class TextEmbeddingWithChunker:
         except FileNotFoundError:
             return {}
 
+def select_n_random_indices(
+    total_size: int,
+    n_select: int,
+    seed: int = 42,
+) -> np.ndarray:
+    """
+    Select n unique random indices from a range of total_size.
+    
+    Args:
+        total_size: The total number of items
+        n_select: Number of unique indices to select
+        seed: Random seed for reproducibility
+    Returns:
+        Numpy array of selected indices
+    """
+    np.random.seed(seed)
+    indices = np.random.choice(total_size, size=n_select, replace=False)
+    return indices
+
 def kmeans_with_faiss(
     faiss_index: faiss.Index,
     X: np.ndarray,
@@ -97,7 +116,7 @@ def kmeans_with_faiss(
         k=n_clusters,
         niter=50,
         nredo=5,
-        verbose=True,
+        verbose=False,
         seed=1234,
         spherical=True,
         gpu=True,

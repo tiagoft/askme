@@ -10,7 +10,7 @@ from tqdm import tqdm
 from .make_collection_index import make_faiss_index
 from .label_propagation import propagate_labels, make_knn_graph, sparse_affinity
 from .tree_models import TreeNode, SplitMetrics
-from ..utils import TextEmbeddingWithChunker, kmeans_with_faiss, true_k_medoids_faiss
+from ..utils import TextEmbeddingWithChunker, kmeans_with_faiss, select_n_random_indices
 from ..makequestions import api, makequestion
 from ..askquestions import check_entailment, models
 from pathlib import Path
@@ -69,6 +69,7 @@ class RTPBuilder:
         max_split_ratio: Optional[float] = None,
         verbose: bool = False,
         cache_dir: str | None = None,
+        selection_strategy : Union['kmeans', 'random'] = 'kmeans',
     ):
         """
         Initialize the RTPBuilder with all necessary models.
@@ -108,6 +109,7 @@ class RTPBuilder:
         self.min_split_ratio = min_split_ratio
         self.max_split_ratio = max_split_ratio
         self.verbose = verbose
+        self.selection_strategy = selection_strategy
         
 
 
@@ -206,22 +208,31 @@ class RTPBuilder:
 
         # Step 2: Get medoids via k-means for hypothesis generation
         if self.verbose:
-            print("Selecting medoids via k-means...")
+            print(
+                f"Selecting {self.n_medoids} elements for hypothesis generation..."
+            )
+        if self.selection_strategy == 'random':
+            if self.verbose:
+                print("Selecting elements via random selection...")
+                
+            medoid_indices = select_n_random_indices(
+                total_size=len(text_collection),
+                n_select=min(self.n_medoids, len(text_collection)),
+                seed=1234,
+            )
+            medoids = [text_collection[idx] for idx in medoid_indices]
+        elif self.selection_strategy == 'kmeans':
+            if self.verbose:
+                print("Selecting medoids via k-means...")
 
-        n_clusters = min(self.n_medoids, len(text_collection))
-        medoid_indices = kmeans_with_faiss(
-            faiss_index=faiss_index,
-            X=embeddings,
-            n_clusters=n_clusters,
-        )
-        # medoid_indices = true_k_medoids_faiss(
-        #     embeddings=embeddings,
-        #     n_clusters=n_clusters,
-        #     nredo=5,
-        #     seed=5432,
-        #     max_docs=10000
-        # )
-        medoids = [text_collection[idx] for idx in medoid_indices]
+            n_clusters = min(self.n_medoids, len(text_collection))
+            medoid_indices = kmeans_with_faiss(
+                faiss_index=faiss_index,
+                X=embeddings,
+                n_clusters=n_clusters,
+            )
+
+            medoids = [text_collection[idx] for idx in medoid_indices]
 
         if self.verbose:
             print(f"Medoid indices: {medoid_indices}")
@@ -393,7 +404,7 @@ class RTPBuilder:
             if split_is_valid or attempt == self.max_retries:
                 if self.verbose:
                     print("Accepting hypothesis and split.")
-                    print(f"Split ratio: {split_ratio:.3f}")
+                    print(f"Split ratio: {len(left_docs) / len(text_collection):.3f}")
                     print(
                         f"Left documents: {len(left_docs)}, Right documents: {len(right_docs)}"
                     )
