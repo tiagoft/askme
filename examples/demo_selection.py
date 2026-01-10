@@ -6,8 +6,12 @@ import numpy as np
 from sklearn.datasets import make_blobs
 
 from askme.rtp.make_collection_index import make_faiss_index
-from askme.utils import (kmeans_with_faiss, select_n_random_indices,
-                         vote_k_sampling, fast_votek)
+from askme.utils import (
+    kmeans_with_faiss,
+    select_n_random_indices,
+    vote_k_sampling,
+    fast_votek,
+)
 
 
 def generate_dataset() -> np.ndarray:
@@ -17,17 +21,19 @@ def generate_dataset() -> np.ndarray:
         [1, -1],
     ]
     cluster_std = [0.1, 0.5, 0.9]
-    n_per_cluster = [200, 200, 200]
-    s = np.vstack( [
-        np.random.normal(loc=centers[i], scale=cluster_std[i], size=(n_per_cluster[i], 2))
+    n_per_cluster = [2000, 2000, 2000]
+    s = np.vstack([
+        np.random.normal(loc=centers[i],
+                         scale=cluster_std[i],
+                         size=(n_per_cluster[i], 2))
         for i in range(len(centers))
     ])
     return s
-    
+
 
 def main():
     X = generate_dataset()
-    
+
     print("Making faiss index")
     faiss_index = faiss.IndexFlatL2(2)
     faiss_index.add(X.astype('float32'))
@@ -96,7 +102,6 @@ def main():
     plt.gca().set_aspect("equal", adjustable="box")
     plt.tight_layout()
     plt.savefig(Path(__file__).parent / "demo_selection.png")
-    plt.show()
 
 
 if __name__ == "__main__":
