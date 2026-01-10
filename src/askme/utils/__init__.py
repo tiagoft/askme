@@ -8,6 +8,10 @@ from .sampling import (
     vote_k_sampling,
     select_n_random_indices,
     fast_votek,
+    VoteKSampler,
+    KMeansSampler,
+    RandomSampler,
+    Sampler,
 )
 
 __all__ = [
@@ -17,4 +21,8 @@ __all__ = [
     "vote_k_sampling",
     "select_n_random_indices",
     "fast_votek",
+    "VoteKSampler",
+    "KMeansSampler",
+    "RandomSampler",
+    "Sampler",
 ]

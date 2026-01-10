@@ -10,7 +10,7 @@ from tqdm import tqdm
 from .make_collection_index import make_faiss_index
 from .label_propagation import propagate_labels, make_knn_graph, sparse_affinity
 from .tree_models import TreeNode, SplitMetrics
-from ..utils import TextEmbeddingWithChunker, kmeans_with_faiss, select_n_random_indices
+from ..utils import TextEmbeddingWithChunker, kmeans_with_faiss, select_n_random_indices, vote_k_sampling
 from ..makequestions import api, makequestion
 from ..askquestions import check_entailment, models
 from pathlib import Path
@@ -69,7 +69,7 @@ class RTPBuilder:
         max_split_ratio: Optional[float] = None,
         verbose: bool = False,
         cache_dir: str | None = None,
-        selection_strategy : Union['kmeans', 'random'] = 'kmeans',
+        selection_strategy : Union['kmeans', 'random', 'votek'] = 'kmeans',
     ):
         """
         Initialize the RTPBuilder with all necessary models.
@@ -232,6 +232,18 @@ class RTPBuilder:
                 n_clusters=n_clusters,
             )
 
+            medoids = [text_collection[idx] for idx in medoid_indices]
+        elif self.selection_strategy == 'votek':
+            if self.verbose:
+                print("Selecting elements via vote-k sampling...")
+
+            n_clusters = min(self.n_medoids, len(text_collection))
+            medoid_indices = vote_k_sampling(
+                faiss_index,
+                embeddings,
+                n_clusters=n_clusters,
+                k_neighbors=30,
+            )
             medoids = [text_collection[idx] for idx in medoid_indices]
 
         if self.verbose:
