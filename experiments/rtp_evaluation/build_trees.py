@@ -62,7 +62,7 @@ def run_rtp_evaluation(
     texts: List[str],
     labels: List[int],
     llm_model_name: str = 'qwen3:14b',
-    n_documents_to_answer: int | float = 0.25,
+    n_documents_to_answer: int | float = 0.1,
     max_depth: int = 4,
     selection_strategy: str = 'kmeans',
 ):
@@ -135,7 +135,6 @@ def run_rtp_evaluation(
         print(f"Average Split Ratio: {avg_split_ratio:.2f}")
         print(f"Average Medoid NLI Confidence: {avg_nli_confidence:.2f}")
 
-
     # print("\nLeaf Purities (by leaf):")
     # for leaf_id, purity in results['leaf_purities'].items():
     #     print(f"  Leaf {leaf_id}: {purity:.4f}")
@@ -147,53 +146,80 @@ def run_rtp_evaluation(
     return tree_root
 
 
-def main():
+def main(model, strategy, depth, frac):
     """Main function to run the complete evaluation."""
     print("=" * 80)
     print("AG NEWS DATASET EVALUATION: RTP RECURSION")
+    print(
+        f"Model: {model}, Strategy: {strategy}, Max Depth: {depth}, Fraction to Answer: {frac}"
+    )
     print("=" * 80)
-
 
     # Load dataset
     texts, labels = load_agnews_sample(n_samples=None, seed=42)
     n_samples = len(texts)
     print(f"\nTotal samples to evaluate: {n_samples}")
-    # # Run RTP evaluation
-    strategy = 'random'
-    for model in [
-            'qwen3:14b',
-            #'qwen3:8b',
-            #'gpt-oss:20b',
-            #'llama3.1:8b',
-    ]:
-        print(f"Running evaluation with LLM model: {model}")
-        rtp_tree = run_rtp_evaluation(
-            texts,
-            labels,
-            llm_model_name=model,
-            n_documents_to_answer=0.1,
-            max_depth=5,
-            selection_strategy=strategy,
-        )
 
-        
-        
-        # Save the rtp_tree for further analysis if needed
-        json_string = rtp_tree.model_dump_json()
+    print(f"Running evaluation with LLM model: {model}")
+    rtp_tree = run_rtp_evaluation(
+        texts,
+        labels,
+        llm_model_name=model,
+        n_documents_to_answer=frac,
+        max_depth=depth,
+        selection_strategy=strategy,
+    )
 
-        with open(f"rtp_tree_on_small_agnews_{model}_{strategy}.json", 'w') as f:
-            f.write(json_string)
+    # Save the rtp_tree for further analysis if needed
+    json_string = rtp_tree.model_dump_json()
 
-        pdf_path = tree_to_pdf.tree_to_pdf(
-            rtp_tree, output_path=f"tree_agnews_rtp_{model}_{strategy}")
-        print(f"PDF saved to: {pdf_path}")
-        # run ollama stop on terminal using exec
-        #exec(f"ollama stop {model}")
-        
+    with open(f"rtp_tree_on_small_agnews_{model}_{strategy}.json", 'w') as f:
+        f.write(json_string)
+
+    pdf_path = tree_to_pdf.tree_to_pdf(
+        rtp_tree, output_path=f"tree_agnews_rtp_{model}_{strategy}")
+    print(f"PDF saved to: {pdf_path}")
+    # run ollama stop on terminal using exec
+    #exec(f"ollama stop {model}")
+
     print("\n" + "=" * 80)
     print("EVALUATION COMPLETE")
     print("=" * 80)
 
 
+def read_input_arguments():
+    import argparse
+    parser = argparse.ArgumentParser(description="Build trees")
+
+    # Define arguments
+    parser.add_argument("--model",
+                        type=str,
+                        required=True,
+                        help="LLM model name")
+    parser.add_argument("--strategy",
+                        type=str,
+                        required=True,
+                        help="Selection strategy")
+    parser.add_argument("--depth",
+                        type=int,
+                        default=4,
+                        help="Maximum tree depth")
+    parser.add_argument("--frac",
+                        type=float,
+                        default=0.25,
+                        help="Fraction of documents to answer")
+
+    # Parse arguments
+    args = parser.parse_args()
+
+    return args
+
+
 if __name__ == "__main__":
-    main()
+    args = read_input_arguments()
+    main(
+        model=args.model,
+        strategy=args.strategy,
+        depth=args.depth,
+        frac=args.frac,
+    )

@@ -1,0 +1,15 @@
+models = [
+"qwen3:8b",
+"gpt-oss:20b",
+"qwen3:14b",
+"llama3.1:8b",
+"llama3.2:3b",
+]
+
+strategies = [
+"random",
+"kmeans",
+"votek",
+]
+
+
