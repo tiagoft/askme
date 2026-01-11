@@ -293,7 +293,7 @@ class RTPBuilder:
             metrics.llm_input_tokens += response.usage().input_tokens
             metrics.llm_output_tokens += response.usage().output_tokens
             hypothesis = response.output.hypothesis
-            metrics.llm_request_time += (time.time() - llm_start) * 1000
+            metrics.llm_request_time_ms += (time.time() - llm_start) * 1000
             if self.verbose:
                 print(f"Generated hypothesis: {hypothesis}")
 

@@ -44,7 +44,7 @@ class SplitMetrics(BaseModel):
     total_time_ms: float = 0.0
     split_ratio: float = 0.0
     medoid_nli_confidence_avg: float = 0.0
-    llm_request_time: float = 0.0
+    llm_request_time_ms: float = 0.0
     nli_time_ms: float = 0.0
     num_nodes: int = 1  # Track number of nodes for averaging
     
@@ -66,7 +66,7 @@ class SplitMetrics(BaseModel):
             total_time_ms=self.total_time_ms + other.total_time_ms,
             split_ratio=self.split_ratio + other.split_ratio,
             medoid_nli_confidence_avg=self.medoid_nli_confidence_avg + other.medoid_nli_confidence_avg,
-            llm_request_time=self.llm_request_time + other.llm_request_time,
+            llm_request_time_ms=self.llm_request_time_ms + other.llm_request_time_ms,
             nli_time_ms=self.nli_time_ms + other.nli_time_ms,
             num_nodes=self.num_nodes + other.num_nodes,
         )

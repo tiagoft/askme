@@ -225,7 +225,7 @@ def test_rtp_builder_returns_metrics_when_requested():
     # medoid_nli_confidence_avg should be between 0 and 1
     assert 0.0 <= metrics.medoid_nli_confidence_avg <= 1.0
     # New timing metrics should be populated
-    assert metrics.llm_request_time > 0.0
+    assert metrics.llm_request_time_ms > 0.0
     assert metrics.nli_time_ms > 0.0
 
 
@@ -278,7 +278,7 @@ def test_split_metrics_default_values():
     assert metrics.total_time_ms == 0.0
     assert metrics.split_ratio == 0.0
     assert metrics.medoid_nli_confidence_avg == 0.0
-    assert metrics.llm_request_time == 0.0
+    assert metrics.llm_request_time_ms == 0.0
     assert metrics.nli_time_ms == 0.0
     assert metrics.num_nodes == 1
 

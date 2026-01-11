@@ -102,7 +102,7 @@ def main():
     print(f"Total FAISS Search Time: {global_metrics.faiss_search_time_ms:.2f} ms")
     print(f"Total Label Propagation Time: {global_metrics.label_propagation_time_ms:.2f} ms")
     print(f"Total Time: {global_metrics.total_time_ms:.2f} ms")
-    print(f"Total LLM Request Time: {global_metrics.llm_request_time:.2f} ms")
+    print(f"Total LLM Request Time: {global_metrics.llm_request_time_ms:.2f} ms")
     print(f"Total NLI Time: {global_metrics.nli_time_ms:.2f} ms")
     print(f"Number of Nodes: {global_metrics.num_nodes}")
     
