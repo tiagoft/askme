@@ -348,7 +348,7 @@ class RTPBuilder:
                 answers[doc_index] = 1 if entails else 0
                 nli_confidences.append(P_entailment)
                 metrics.nli_calls += 1
-            metrics.nli_time += (time.time() - nli_start) * 1000
+            metrics.nli_time_ms += (time.time() - nli_start) * 1000
 
             if self.verbose:
                 print(f"NLI answered {len(doc_indices)} documents.")
