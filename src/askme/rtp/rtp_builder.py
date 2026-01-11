@@ -287,6 +287,7 @@ class RTPBuilder:
                     question=None,
                 )
                 if return_metrics:
+                    metrics.success = False
                     return root, metrics
                 return root
                 # Track LLM tokens
@@ -397,6 +398,7 @@ class RTPBuilder:
 
             # Check split ratio if split occurred
             split_is_valid = True
+            metrics.n_attempts = attempt + 1
             if len(left_docs) > 0 and len(right_docs) > 0:
                 # Calculate split ratio (proportion in smaller child)
                 smaller_count = min(len(left_docs), len(right_docs))
@@ -408,9 +410,13 @@ class RTPBuilder:
                 if self.max_split_ratio is not None and split_ratio > self.max_split_ratio:
                     split_is_valid = False
 
-                # Store split ratio for the last attempt
+                # Store split ratio and split entropy (assuming bernoulli prior)
+                # for the last attempt
                 if attempt == self.max_retries or split_is_valid:
                     metrics.split_ratio = len(left_docs) / len(text_collection)
+                    entropy = -(split_ratio * np.log2(split_ratio) +
+                                (1 - split_ratio) * np.log2(1 - split_ratio))
+                    metrics.split_entropy = entropy
 
             # If split is valid or we've exhausted retries, stop
             if split_is_valid or attempt == self.max_retries:

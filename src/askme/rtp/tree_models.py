@@ -36,6 +36,7 @@ class SplitMetrics(BaseModel):
         nli_time: Time (in milliseconds) spent on NLI calls
         num_nodes: Number of nodes represented in these metrics (for averaging)
     """
+    success : bool = True
     llm_input_tokens: int = 0
     llm_output_tokens: int = 0
     nli_calls: int = 0
@@ -47,6 +48,8 @@ class SplitMetrics(BaseModel):
     llm_request_time_ms: float = 0.0
     nli_time_ms: float = 0.0
     num_nodes: int = 1  # Track number of nodes for averaging
+    split_entropy: float = 0.0
+    n_attempts: int = 0
     
     def __add__(self, other: 'SplitMetrics') -> 'SplitMetrics':
         """Add two SplitMetrics objects together to aggregate metrics.
@@ -69,6 +72,8 @@ class SplitMetrics(BaseModel):
             llm_request_time_ms=self.llm_request_time_ms + other.llm_request_time_ms,
             nli_time_ms=self.nli_time_ms + other.nli_time_ms,
             num_nodes=self.num_nodes + other.num_nodes,
+            split_entropy=self.split_entropy + other.split_entropy,
+            n_attempts=self.n_attempts + other.n_attempts,
         )
         
 
