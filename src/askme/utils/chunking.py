@@ -1,4 +1,5 @@
 from sentence_transformers import SentenceTransformer
+from torch.utils.data import Dataset
 import numpy as np
 import pickle
 
