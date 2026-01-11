@@ -1,6 +1,8 @@
 from .chunking import (
     TextEmbeddingWithChunker,
     chunk_text,
+    ChunkingDataset,
+    chunked_collate,
 )
 
 from .sampling import (
@@ -25,4 +27,6 @@ __all__ = [
     "KMeansSampler",
     "RandomSampler",
     "Sampler",
+    "ChunkingDataset",
+    "chunked_collate",
 ]

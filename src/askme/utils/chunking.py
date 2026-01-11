@@ -83,3 +83,46 @@ class TextEmbeddingWithChunker:
                 self.cache = pickle.load(f)
         except FileNotFoundError:
             return {}
+
+
+class ChunkingDataset(Dataset):
+    def __init__(self, data, chunk_fn):
+        self.data = data
+        self.chunk_fn = chunk_fn
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        chunks = self.chunk_fn(self.data[idx])
+        # We return index + chunks → easy to regroup later
+        return {
+            'item_idx': idx,
+            'chunks': chunks,  # list of chunks
+            'num_chunks': len(chunks)
+        }
+
+
+def chunked_collate(batch):
+    """Flattens chunks but keeps track of boundaries"""
+    item_indices = []
+    all_chunks = []
+    chunk_boundaries = []  # where each original item starts and ends
+
+    current_pos = 0
+    for sample in batch:
+        item_idx = sample['item_idx']
+        chunks = sample['chunks']
+
+        item_indices.extend([item_idx] * len(chunks))
+        all_chunks.extend(chunks)
+        chunk_boundaries.append((current_pos, current_pos + len(chunks)))
+        current_pos += len(chunks)
+
+    return {
+        'chunks': all_chunks,  # list of chunks (what model will get)
+        'item_indices': item_indices,  # [item_idx for each chunk]
+        'boundaries':
+        chunk_boundaries,  # list of (start, end) for each original item
+        'original_batch_size': len(batch)
+    }    
