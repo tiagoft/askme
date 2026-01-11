@@ -12,4 +12,8 @@ strategies = [
 "votek",
 ]
 
+datasets = [
+    "fancyzhx/dbpedia_14",
+    "fancyzhx/ag_news",
+]
 

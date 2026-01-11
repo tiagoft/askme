@@ -15,8 +15,11 @@ import numpy as np
 from typing import List, Tuple
 
 
-def load_agnews_sample(n_samples: int | None = 500,
-                       seed: int = 42) -> Tuple[List[str], List[int]]:
+def load_dataset_sample(
+    n_samples: int | None = 500,
+    seed: int = 42,
+    dataset_name: str = 'fancyzhx/ag_news',
+) -> Tuple[List[str], List[int]]:
     """
     Load a sample of n documents from the AG News dataset.
     
@@ -27,8 +30,9 @@ def load_agnews_sample(n_samples: int | None = 500,
     Returns:
         Tuple of (texts, labels)
     """
-    print(f"Loading {n_samples} samples from AG News dataset...")
-    dataset = load_dataset('fancyzhx/ag_news', split='train')
+
+    print(f"Loading {n_samples} samples from {dataset_name} dataset...")
+    dataset = load_dataset(dataset_name, split='train')
 
     # Set random seed for reproducibility
     np.random.seed(seed)
@@ -124,7 +128,8 @@ def run_rtp_evaluation(
         f"Total Label Propagation Time: {global_metrics.label_propagation_time_ms:.2f} ms"
     )
     print(f"Total Time: {global_metrics.total_time_ms:.2f} ms")
-    print(f"Total LLM Request Time: {global_metrics.llm_request_time_ms:.2f} ms")
+    print(
+        f"Total LLM Request Time: {global_metrics.llm_request_time_ms:.2f} ms")
     print(f"Total NLI Time: {global_metrics.nli_time_ms:.2f} ms")
     print(f"Number of Nodes: {global_metrics.num_nodes}")
 
@@ -146,17 +151,21 @@ def run_rtp_evaluation(
     return tree_root
 
 
-def main(model, strategy, depth, frac):
+def main(model, strategy, depth, frac, dataset_name="fancyzhx/ag_news"):
     """Main function to run the complete evaluation."""
     print("=" * 80)
-    print("AG NEWS DATASET EVALUATION: RTP RECURSION")
+    print(f"{dataset_name.upper()} DATASET EVALUATION: RTP RECURSION")
     print(
         f"Model: {model}, Strategy: {strategy}, Max Depth: {depth}, Fraction to Answer: {frac}"
     )
     print("=" * 80)
 
     # Load dataset
-    texts, labels = load_agnews_sample(n_samples=None, seed=42)
+    texts, labels = load_dataset_sample(
+        n_samples=None,
+        seed=42,
+        dataset_name=dataset_name,
+    )
     n_samples = len(texts)
     print(f"\nTotal samples to evaluate: {n_samples}")
 
@@ -173,11 +182,12 @@ def main(model, strategy, depth, frac):
     # Save the rtp_tree for further analysis if needed
     json_string = rtp_tree.model_dump_json()
 
-    with open(f"rtp_tree_on_small_agnews_{model}_{strategy}.json", 'w') as f:
+    dataset_tag = dataset_name.replace('/', '_')
+    with open(f"rtp_tree_on_small_{dataset_tag}_{model}_{strategy}.json", 'w') as f:
         f.write(json_string)
 
     pdf_path = tree_to_pdf.tree_to_pdf(
-        rtp_tree, output_path=f"tree_agnews_rtp_{model}_{strategy}")
+        rtp_tree, output_path=f"tree_{dataset_tag}_rtp_{model}_{strategy}")
     print(f"PDF saved to: {pdf_path}")
     # run ollama stop on terminal using exec
     #exec(f"ollama stop {model}")
@@ -208,6 +218,10 @@ def read_input_arguments():
                         type=float,
                         default=0.25,
                         help="Fraction of documents to answer")
+    parser.add_argument("--dataset",
+                        type=str,
+                        default="fancyzhx/ag_news",
+                        help="Dataset name")
 
     # Parse arguments
     args = parser.parse_args()
@@ -222,4 +236,5 @@ if __name__ == "__main__":
         strategy=args.strategy,
         depth=args.depth,
         frac=args.frac,
+        dataset_name=args.dataset,
     )

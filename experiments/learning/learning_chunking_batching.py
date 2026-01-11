@@ -2,6 +2,53 @@ from torch.utils.data import Dataset, DataLoader
 import torch
 
 
+class ChunkedBatchedModel:
+    def __init__(
+        self,
+        model,
+        chunk_size=512,
+        overlap=128,
+        batch_size=8,
+        pooling_strategy='mean',
+    ):
+        self.chunk_size = chunk_size
+        self.overlap = overlap
+        self.batch_size = batch_size
+        self.model = model
+        if pooling_strategy not in ['mean', 'max']:
+            raise ValueError(f"Unsupported pooling strategy: {pooling_strategy}")
+        self.pooling_strategy = pooling_strategy
+
+    def __call__(self, X: list[str]):
+        dataset = ChunkingDataset(
+            X,
+            chunk_fn=lambda item: chunk_fn(item, self.chunk_size, self.overlap
+                                           ),
+        )
+        dataloader = DataLoader(
+            dataset,
+            batch_size=self.batch_size,
+            shuffle=False,
+            collate_fn=smart_collate,
+        )
+        
+        embeddings_per_item = []
+        for batch in dataloader:
+            chunk_embeddings = self.model(batch['chunks'])
+            
+            if self.pooling_strategy == 'mean':
+                pool_fn = lambda embs: embs.mean(dim=0)
+            elif self.pooling_strategy == 'max':
+                pool_fn = lambda embs: embs.max(dim=0).values
+
+            
+            for start, end in batch['boundaries']:
+                item_embs = chunk_embeddings[start:end]
+                pooled = pool_fn(item_embs)
+                embeddings_per_item.append(pooled)
+                
+        return torch.stack(embeddings_per_item)
+            
 def chunk_fn(item, chunk_size=512, overlap=128):
     chunks = []
     start = 0
@@ -15,6 +62,7 @@ def chunk_fn(item, chunk_size=512, overlap=128):
 
 
 class ChunkingDataset(Dataset):
+
     def __init__(self, data, chunk_fn):
         self.data = data
         self.chunk_fn = chunk_fn
