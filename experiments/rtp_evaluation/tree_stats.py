@@ -4,9 +4,8 @@ import json
 from askme.rtp import TreeNode, SplitMetrics, evaluate_exploratory_power
 
 
-def run():
-    args = read_input_arguments()
-    input_path = Path(args.input)
+def process_file(input_fn: str):
+    input_path = Path(input_fn)
     with open(input_path, 'r') as f:
         json_data = f.read()
     loaded_node = TreeNode.model_validate_json(json_data)
@@ -20,6 +19,14 @@ def run():
     
     print("Aggregated Tree Metrics:")
     print(metrics.model_dump_json(indent=4))
+
+
+def run():
+    args = read_input_arguments()
+    inputs = args.input
+
+    for input_fn in inputs:
+        process_file(input_fn)
     
 
 def count_leaves(node: TreeNode) -> int:
@@ -63,9 +70,11 @@ def read_input_arguments():
     import argparse
     parser = argparse.ArgumentParser(description="Evaluate trees")
 
+
     # Define arguments
     parser.add_argument("--input",
                         type=str,
+                        nargs="+",
                         required=True,
                         help="Input file path")
 
