@@ -3,8 +3,6 @@ import numpy as np
 from ..utils import chunk_text
 
 
-
-
 def pool_nli_scores(
     check_fn,
     premise: str,
@@ -41,36 +39,36 @@ def pool_nli_scores(
     
     return best_result 
 
-def check_entailment_nli_pipeline(
-    pipeline,
-    premise: str,
-    hypothesis: str,
-    label_names=['contradiction', 'entailment', 'neutral']
-) -> tuple[bool, float, float, float]:
-    output = pipeline(premise, hypothesis)
-    logits = torch.tensor(output['scores'])
+# def check_entailment_nli_pipeline(
+#     pipeline,
+#     premise: str,
+#     hypothesis: str,
+#     label_names=['contradiction', 'entailment', 'neutral']
+# ) -> tuple[bool, float, float, float]:
+#     output = pipeline(premise, hypothesis)
+#     logits = torch.tensor(output['scores'])
 
-    named_logits = {
-        name: round(float(logit.item()), 1)
-        for logit, name in zip(logits, label_names)
-    }
+#     named_logits = {
+#         name: round(float(logit.item()), 1)
+#         for logit, name in zip(logits, label_names)
+#     }
 
-    # P_entailment = P(entailment | entailment or contradiction)
-    # We ignore "neutral" for this probability calculation
-    # Following: https://arxiv.org/pdf/2303.08896
-    # (self-check GPT)
-    P_entailment = torch.softmax(
-        logits[[
-            label_names.index("entailment"),
-            label_names.index("contradiction")
-        ]], -1)[0].item()
+#     # P_entailment = P(entailment | entailment or contradiction)
+#     # We ignore "neutral" for this probability calculation
+#     # Following: https://arxiv.org/pdf/2303.08896
+#     # (self-check GPT)
+#     P_entailment = torch.softmax(
+#         logits[[
+#             label_names.index("entailment"),
+#             label_names.index("contradiction")
+#         ]], -1)[0].item()
     
-    return (
-        (named_logits["entailment"] > named_logits["contradiction"]),
-        named_logits["entailment"],
-        named_logits["contradiction"],
-        P_entailment,
-    )
+#     return (
+#         (named_logits["entailment"] > named_logits["contradiction"]),
+#         named_logits["entailment"],
+#         named_logits["contradiction"],
+#         P_entailment,
+#     )
 
 def check_entailment_nli(
     model,
@@ -91,7 +89,6 @@ def check_entailment_nli(
     named_logits = {
         name: round(float(logit.item()), 1)
         for logit, name in zip(logits, label_names)
-    
     }
     
     # P_entailment = P(entailment | entailment or contradiction)

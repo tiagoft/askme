@@ -3,6 +3,7 @@ from .chunking import (
     chunk_text,
     ChunkingDataset,
     chunked_collate,
+    NLIWithChunkingAndPooling,
 )
 
 from .sampling import (
@@ -29,4 +30,4 @@ __all__ = [
     "Sampler",
     "ChunkingDataset",
     "chunked_collate",
-]
+    "NLIWithChunkingAndPooling"]
