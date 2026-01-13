@@ -177,6 +177,7 @@ class NLIWithChunkingAndPooling:
             Tuple of (is_entailed, entailment_score, contradiction_score, P_entailment)
             from the chunk with the highest entailment score (max-pooling)
         """
+        assert isinstance(premise, list), "Premise must be a list of strings."
         dataset = ChunkingDataset(
             data=premise,
             chunk_fn=lambda text: self.chunk_fn(
