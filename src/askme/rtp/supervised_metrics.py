@@ -6,7 +6,7 @@ tree quality, including clustering metrics like NMI, ARI, and classification
 metrics like accuracy and F1-score.
 """
 
-from typing import List, Dict, Optional, Union
+from typing import List, Dict, Optional, Union, Tuple
 from collections import Counter
 import numpy as np
 from sklearn.metrics import (
@@ -68,7 +68,7 @@ def get_all_leaves(root: TreeNode) -> List[TreeNode]:
     return leaves
 
 
-def _get_cluster_assignments(root: TreeNode, labels: List[int], use_leaves_only: bool = True) -> tuple[List[int], List[int]]:
+def _get_cluster_assignments(root: TreeNode, labels: List[int], use_leaves_only: bool = True) -> Tuple[List[int], List[int]]:
     """
     Get cluster assignments for documents based on tree structure.
     
@@ -103,7 +103,7 @@ def _get_cluster_assignments(root: TreeNode, labels: List[int], use_leaves_only:
     return predicted_clusters, true_labels
 
 
-def _get_predicted_labels(root: TreeNode, labels: List[int], use_leaves_only: bool = True) -> tuple[List[int], List[int]]:
+def _get_predicted_labels(root: TreeNode, labels: List[int], use_leaves_only: bool = True) -> Tuple[List[int], List[int]]:
     """
     Get predicted class labels for documents based on majority class in each node.
     
@@ -435,7 +435,8 @@ def _confusion_matrix(root: TreeNode, labels: List[int], use_leaves_only: bool =
     predicted_labels, true_labels = _get_predicted_labels(root, labels, use_leaves_only)
     
     if len(predicted_labels) == 0:
-        return np.array([[]])
+        # Return empty 1D array for empty inputs
+        return np.array([])
     
     return confusion_matrix(true_labels, predicted_labels)
 
