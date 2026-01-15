@@ -5,7 +5,6 @@ This module provides metrics that can be calculated on trees without requiring
 document labels. These metrics help evaluate tree structure and balance.
 """
 
-from typing import List
 from .tree_models import TreeNode
 
 
@@ -205,7 +204,7 @@ class TreeNodeUnbalance(UnsupervisedMetric):
         return _tree_node_unbalance(root)
 
 
-def _documents_per_leaf(root: TreeNode) -> List[int]:
+def _documents_per_leaf(root: TreeNode) -> list[int]:
     """
     Get the number of documents in each leaf node.
     
@@ -238,7 +237,7 @@ def _documents_per_leaf(root: TreeNode) -> List[int]:
 class DocumentsPerLeaf(UnsupervisedMetric):
     """Metric that returns the number of documents in each leaf node."""
     
-    def __call__(self, root: TreeNode, **kwargs) -> List[int]:
+    def __call__(self, root: TreeNode, **kwargs) -> list[int]:
         """
         Get the number of documents in each leaf node.
         
