@@ -193,7 +193,7 @@ def test_documents_per_leaf_complex_tree():
     
     metric = DocumentsPerLeaf()
     result = metric(root)
-    # Should have 3 leaves with 1, 2, and 1 documents (or some permutation)
+    # Should have 3 leaves with 1, 1, and 2 documents (verified using sorted)
     assert sorted(result) == [1, 1, 2]
 
 
