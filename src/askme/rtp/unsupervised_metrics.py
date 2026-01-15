@@ -255,6 +255,21 @@ class DocumentsPerLeaf(UnsupervisedMetric):
         return _documents_per_leaf(root)
 
 
+def _count_documents_in_node(node: TreeNode) -> int:
+    """
+    Count the number of documents in a node.
+    
+    Args:
+        node: A TreeNode (can be None)
+        
+    Returns:
+        Number of documents in the node, or 0 if node is None
+    """
+    if node is None:
+        return 0
+    return len(node.documents)
+
+
 def _tree_document_unbalance(root: TreeNode) -> int:
     """
     Calculate the tree document unbalance.
@@ -271,14 +286,8 @@ def _tree_document_unbalance(root: TreeNode) -> int:
     if root is None:
         return 0
     
-    # Count documents in left and right subtrees
-    def count_documents(node: TreeNode) -> int:
-        if node is None:
-            return 0
-        return len(node.documents)
-    
-    left_docs = count_documents(root.left)
-    right_docs = count_documents(root.right)
+    left_docs = _count_documents_in_node(root.left)
+    right_docs = _count_documents_in_node(root.right)
     
     return abs(left_docs - right_docs)
 
