@@ -48,6 +48,24 @@ def __getattr__(name):
     elif name == 'tree_to_pdf':
         from .tree_to_pdf import tree_to_pdf
         return tree_to_pdf
+    elif name in ('SelfSupervisedMetric', 'SilhouetteScoreMetric', 'DaviesBouldinScoreMetric',
+                  'CalinskiHarabaszScoreMetric', 'TopicDiversityMetric', 'ChildParentUniquenessMetric'):
+        from .self_supervised_metrics import (
+            SelfSupervisedMetric,
+            SilhouetteScoreMetric,
+            DaviesBouldinScoreMetric,
+            CalinskiHarabaszScoreMetric,
+            TopicDiversityMetric,
+            ChildParentUniquenessMetric,
+        )
+        return {
+            'SelfSupervisedMetric': SelfSupervisedMetric,
+            'SilhouetteScoreMetric': SilhouetteScoreMetric,
+            'DaviesBouldinScoreMetric': DaviesBouldinScoreMetric,
+            'CalinskiHarabaszScoreMetric': CalinskiHarabaszScoreMetric,
+            'TopicDiversityMetric': TopicDiversityMetric,
+            'ChildParentUniquenessMetric': ChildParentUniquenessMetric,
+        }[name]
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
 __all__ = [
@@ -69,4 +87,10 @@ __all__ = [
     'load_tree_from_json',
     'tree_to_graphviz',
     'tree_to_pdf',
+    'SelfSupervisedMetric',
+    'SilhouetteScoreMetric',
+    'DaviesBouldinScoreMetric',
+    'CalinskiHarabaszScoreMetric',
+    'TopicDiversityMetric',
+    'ChildParentUniquenessMetric',
 ]
