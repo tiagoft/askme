@@ -192,8 +192,8 @@ def _topic_diversity_metric(
     embeddings: np.ndarray,
     topk: int = 10,
     mode: str = "full_tree",
-    embedding_model: Optional[Any] = None,
-    device: str = "cpu",
+    min_word_length: int = 3,
+    stop_words: Optional[set] = None,
     **kwargs
 ) -> float:
     """
@@ -209,8 +209,8 @@ def _topic_diversity_metric(
         topk: Number of top words to consider per topic (default: 10)
         mode: "full_tree" to calculate for all nodes, or "leaf_paths" to calculate
               per-leaf and average (default: "full_tree")
-        embedding_model: Optional embedding model for extracting top words from questions
-        device: Device to use for embedding model (default: "cpu")
+        min_word_length: Minimum word length to consider (default: 3)
+        stop_words: Set of stop words to exclude. If None, uses a default set.
         **kwargs: Additional parameters (unused)
         
     Returns:
@@ -219,6 +219,13 @@ def _topic_diversity_metric(
     Raises:
         ValueError: If no questions/hypotheses are found in the tree
     """
+    # Default stop words if not provided
+    if stop_words is None:
+        stop_words = {'the', 'is', 'at', 'which', 'on', 'a', 'an', 'and', 'or', 'but', 
+                      'in', 'with', 'to', 'for', 'of', 'as', 'by', 'it', 'this', 'that',
+                      'are', 'was', 'were', 'been', 'be', 'have', 'has', 'had', 'do',
+                      'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might'}
+    
     def get_top_words(text: str, k: int) -> List[str]:
         """Extract top k words from text (simple tokenization)."""
         if not text:
@@ -226,9 +233,8 @@ def _topic_diversity_metric(
         # Simple word extraction - split on whitespace and punctuation
         import re
         words = re.findall(r'\b\w+\b', text.lower())
-        # Remove common stop words
-        stop_words = {'the', 'is', 'at', 'which', 'on', 'a', 'an', 'and', 'or', 'but', 'in', 'with', 'to', 'for', 'of', 'as', 'by'}
-        words = [w for w in words if w not in stop_words and len(w) > 2]
+        # Remove stop words and short words
+        words = [w for w in words if w not in stop_words and len(w) >= min_word_length]
         return words[:k]
     
     def collect_questions(node: TreeNode) -> List[str]:
@@ -316,8 +322,6 @@ def _topic_diversity_metric(
 def _child_parent_uniqueness_metric(
     root: TreeNode,
     embeddings: np.ndarray,
-    embedding_model: Optional[Any] = None,
-    device: str = "cpu",
     **kwargs
 ) -> Dict[str, float]:
     """
@@ -330,8 +334,6 @@ def _child_parent_uniqueness_metric(
     Args:
         root: Root node of the tree
         embeddings: Document embeddings array of shape (n_documents, embedding_dim)
-        embedding_model: Optional embedding model for computing question embeddings
-        device: Device to use for embedding model (default: "cpu")
         **kwargs: Additional parameters (unused)
         
     Returns:
@@ -453,6 +455,8 @@ class TopicDiversityMetric(SelfSupervisedMetric):
         embeddings: np.ndarray,
         topk: int = 10,
         mode: str = "full_tree",
+        min_word_length: int = 3,
+        stop_words: Optional[set] = None,
         **kwargs
     ) -> float:
         """
@@ -463,12 +467,17 @@ class TopicDiversityMetric(SelfSupervisedMetric):
             embeddings: Document embeddings array
             topk: Number of top words per topic (default: 10)
             mode: "full_tree" or "leaf_paths" (default: "full_tree")
+            min_word_length: Minimum word length to consider (default: 3)
+            stop_words: Set of stop words to exclude. If None, uses a default set.
             **kwargs: Additional parameters
             
         Returns:
             Topic diversity score (0 to 1, higher is better)
         """
-        return _topic_diversity_metric(root, embeddings, topk=topk, mode=mode, **kwargs)
+        return _topic_diversity_metric(
+            root, embeddings, topk=topk, mode=mode, 
+            min_word_length=min_word_length, stop_words=stop_words, **kwargs
+        )
 
 
 class ChildParentUniquenessMetric(SelfSupervisedMetric):

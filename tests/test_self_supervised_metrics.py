@@ -434,3 +434,48 @@ def test_all_metrics_together(simple_tree, simple_embeddings):
     assert calinski >= 0.0
     assert 0.0 <= diversity <= 1.0
     assert 'avg_uniqueness' in uniqueness
+
+
+def test_topic_diversity_custom_stop_words(simple_embeddings):
+    """Test topic diversity with custom stop words."""
+    root = TreeNode(documents=[0, 1, 2, 3, 4, 5], question="Is this about technology computers?")
+    left = TreeNode(documents=[0, 1, 2], question="Is this about technology systems?")
+    right = TreeNode(documents=[3, 4, 5], question="Is this about biology science?")
+    root.left = left
+    root.right = right
+    
+    # Use custom stop words that exclude 'technology'
+    custom_stop_words = {'the', 'is', 'this', 'about'}
+    
+    score = _topic_diversity_metric(
+        root, simple_embeddings, topk=5, mode="full_tree", 
+        stop_words=custom_stop_words
+    )
+    
+    assert 0.0 <= score <= 1.0
+
+
+def test_topic_diversity_custom_min_word_length(simple_embeddings):
+    """Test topic diversity with custom minimum word length."""
+    root = TreeNode(documents=[0, 1, 2, 3, 4, 5], question="Is it AI or ML?")
+    left = TreeNode(documents=[0, 1, 2], question="Is it NLP?")
+    right = TreeNode(documents=[3, 4, 5], question="Is it CV?")
+    root.left = left
+    root.right = right
+    
+    # Use min_word_length=2 to include short acronyms
+    score = _topic_diversity_metric(
+        root, simple_embeddings, topk=5, mode="full_tree", 
+        min_word_length=2
+    )
+    
+    assert 0.0 <= score <= 1.0
+    
+    # With higher min_word_length, we should get different results
+    score_long = _topic_diversity_metric(
+        root, simple_embeddings, topk=5, mode="full_tree", 
+        min_word_length=5
+    )
+    
+    # Scores can be different (or same if no words meet threshold)
+    assert 0.0 <= score_long <= 1.0
