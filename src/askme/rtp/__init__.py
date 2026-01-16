@@ -48,6 +48,28 @@ def __getattr__(name):
     elif name == 'tree_to_pdf':
         from .tree_to_pdf import tree_to_pdf
         return tree_to_pdf
+    # Supervised metrics
+    elif name == 'SupervisedMetric':
+        from .supervised_metrics import SupervisedMetric
+        return SupervisedMetric
+    elif name == 'NormalizedMutualInformation':
+        from .supervised_metrics import NormalizedMutualInformation
+        return NormalizedMutualInformation
+    elif name == 'AdjustedRandIndex':
+        from .supervised_metrics import AdjustedRandIndex
+        return AdjustedRandIndex
+    elif name == 'HomogeneityCompletenessVMeasure':
+        from .supervised_metrics import HomogeneityCompletenessVMeasure
+        return HomogeneityCompletenessVMeasure
+    elif name == 'Accuracy':
+        from .supervised_metrics import Accuracy
+        return Accuracy
+    elif name == 'F1Score':
+        from .supervised_metrics import F1Score
+        return F1Score
+    elif name == 'ConfusionMatrix':
+        from .supervised_metrics import ConfusionMatrix
+        return ConfusionMatrix
     elif name == 'UnsupervisedMetric':
         from .unsupervised_metrics import UnsupervisedMetric
         return UnsupervisedMetric
@@ -90,6 +112,13 @@ __all__ = [
     'load_tree_from_json',
     'tree_to_graphviz',
     'tree_to_pdf',
+    'SupervisedMetric',
+    'NormalizedMutualInformation',
+    'AdjustedRandIndex',
+    'HomogeneityCompletenessVMeasure',
+    'Accuracy',
+    'F1Score',
+    'ConfusionMatrix',
     'UnsupervisedMetric',
     'NumberOfNodes',
     'TreeHeight',
