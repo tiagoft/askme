@@ -17,6 +17,16 @@ from askme.rtp.unsupervised_metrics import (
     TreeDocumentUnbalance,
 )
 
+from askme.rtp.supervised_metrics import (
+    SupervisedMetric,
+    NormalizedMutualInformation,
+    AdjustedRandIndex,
+    HomogeneityCompletenessVMeasure,
+    Accuracy,
+    F1Score,
+    ConfusionMatrix,
+)
+
 def _pooling_fn(values):
     min_ = np.min(values)
     max_ = np.max(values)
@@ -46,10 +56,28 @@ def evaluate(filename):
         DocumentsPerLeaf(pool_fn=_pooling_fn),
         TreeDocumentUnbalance(),
     ]
+    
+    supervised_metrics = [
+        NormalizedMutualInformation(),
+        AdjustedRandIndex(),
+        HomogeneityCompletenessVMeasure(),
+        Accuracy(),
+        F1Score(),
+        #ConfusionMatrix(),
+    ]
+    
     output_df = pd.DataFrame()
     for metric in unsupervised_metrics:
         result = metric(tree)
         output_df[metric.__class__.__name__] = [result]
+        
+    for metric in supervised_metrics:
+        result = metric(tree)
+        if isinstance(result, dict):
+            for key, value in result.items():
+                output_df[f"{metric.__class__.__name__}_{key}"] = [value]
+        else:
+            output_df[metric.__class__.__name__] = [result]
     return output_df
 
 def read_input_arguments():
