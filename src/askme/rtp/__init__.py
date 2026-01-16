@@ -48,6 +48,27 @@ def __getattr__(name):
     elif name == 'tree_to_pdf':
         from .tree_to_pdf import tree_to_pdf
         return tree_to_pdf
+    elif name == 'UnsupervisedMetric':
+        from .unsupervised_metrics import UnsupervisedMetric
+        return UnsupervisedMetric
+    elif name == 'NumberOfNodes':
+        from .unsupervised_metrics import NumberOfNodes
+        return NumberOfNodes
+    elif name == 'TreeHeight':
+        from .unsupervised_metrics import TreeHeight
+        return TreeHeight
+    elif name == 'NumberOfLeafNodes':
+        from .unsupervised_metrics import NumberOfLeafNodes
+        return NumberOfLeafNodes
+    elif name == 'TreeNodeUnbalance':
+        from .unsupervised_metrics import TreeNodeUnbalance
+        return TreeNodeUnbalance
+    elif name == 'DocumentsPerLeaf':
+        from .unsupervised_metrics import DocumentsPerLeaf
+        return DocumentsPerLeaf
+    elif name == 'TreeDocumentUnbalance':
+        from .unsupervised_metrics import TreeDocumentUnbalance
+        return TreeDocumentUnbalance
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
 __all__ = [
@@ -69,4 +90,11 @@ __all__ = [
     'load_tree_from_json',
     'tree_to_graphviz',
     'tree_to_pdf',
+    'UnsupervisedMetric',
+    'NumberOfNodes',
+    'TreeHeight',
+    'NumberOfLeafNodes',
+    'TreeNodeUnbalance',
+    'DocumentsPerLeaf',
+    'TreeDocumentUnbalance',
 ]
