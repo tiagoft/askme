@@ -2,7 +2,7 @@ import os
 import sys
 import json
 import numpy as np
-
+import pandas as pd 
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
@@ -23,9 +23,10 @@ def _pooling_fn(values):
     mu = np.mean(values)
     std = np.std(values)
     relative_std = std / mu if mu != 0 else 0
-    return {'mean': mu, 'std': std, 'relative_std': relative_std, 'min': min_, 'max': max_}    
+    return relative_std
+    #return {'mean': mu, 'std': std, 'relative_std': relative_std, 'min': min_, 'max': max_}    
 
-def main(filename):
+def evaluate(filename):
     """Main function to run the tree evaluation."""
     with open(filename, 'rb') as f:
         if filename.endswith('.pkl'):
@@ -45,9 +46,11 @@ def main(filename):
         DocumentsPerLeaf(pool_fn=_pooling_fn),
         TreeDocumentUnbalance(),
     ]
+    output_df = pd.DataFrame()
     for metric in unsupervised_metrics:
         result = metric(tree)
-        print(f"{metric.__class__.__name__}: {result}")
+        output_df[metric.__class__.__name__] = [result]
+    return output_df
 
 def read_input_arguments():
     import argparse
@@ -56,6 +59,7 @@ def read_input_arguments():
     # Define arguments
     parser.add_argument("--filename",
                         type=str,
+                        nargs='+',
                         required=True,
                         help="Filename for the input data")
 
@@ -68,6 +72,13 @@ def read_input_arguments():
 if __name__ == "__main__":
     print("Starting tree evaluation...")
     args = read_input_arguments()
-    main(
-        filename=args.filename
-    )
+    
+    output_dfs = []
+    for filename in args.filename:
+        output_df = evaluate(
+            filename=filename
+        )
+        output_df['filename'] = filename
+        output_dfs.append(output_df)
+    final_df = pd.concat(output_dfs, ignore_index=True)
+    print(final_df)
