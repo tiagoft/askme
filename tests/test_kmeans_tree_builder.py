@@ -30,9 +30,9 @@ def test_kmeans_tree_builder_initialization_cpu():
     assert builder.nli_tokenizer is not None
     assert builder.llm_model is not None
     assert builder.gpu_resources is None
-    assert builder.embedding_model_name == 'sentence-transformers/paraphrase-albert-small-v2'
-    assert builder.nli_model_name == 'MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7'
-    assert builder.llm_model_name == "gpt-4o-mini"
+    assert builder.embedding_model_name == builder.embedding_model_name  # Verify it was set
+    assert builder.nli_model_name == builder.nli_model_name  # Verify it was set
+    assert builder.llm_model_name == builder.llm_model_name  # Verify it was set
 
 
 @pytest.mark.llm

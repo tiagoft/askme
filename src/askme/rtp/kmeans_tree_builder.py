@@ -82,8 +82,8 @@ class KMeansTreeBuilder:
         max_split_ratio: Optional[float] = None,
         verbose: bool = False,
         cache_dir: str | None = None,
-        selection_strategy: Union['kmeans', 'random', 'votek'] = 'kmeans',
-        nli_selection_strategy: Union['kmeans', 'random', 'votek'] = 'kmeans',
+        selection_strategy: str = 'kmeans',
+        nli_selection_strategy: str = 'kmeans',
         nli_batched: bool = True,
     ):
         """
@@ -119,7 +119,6 @@ class KMeansTreeBuilder:
         self.nli_model_name = nli_model_name
         self.llm_model_name = llm_model_name
         self.chunk_size = chunk_size
-        self.chunk_overlap = overlap
         self.overlap = overlap
         self.n_medoids_per_cluster = n_medoids_per_cluster
         self.n_documents_to_answer = n_documents_to_answer
@@ -446,7 +445,7 @@ class KMeansTreeBuilder:
                     )
 
             # Initialize labels as unlabeled (-1)
-            answers = -np.ones((len(text_collection),), dtype=object)
+            answers = -np.ones((len(text_collection),), dtype=np.int8)
 
             device = 'cuda' if self.use_gpu else 'cpu'
             nli_confidences = []
