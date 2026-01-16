@@ -6,7 +6,7 @@ document labels. These metrics help evaluate tree structure and balance.
 """
 
 from .tree_models import TreeNode
-
+from numpy import mean
 
 class UnsupervisedMetric:
     """Base class for unsupervised tree metrics."""
@@ -236,8 +236,11 @@ def _documents_per_leaf(root: TreeNode) -> list[int]:
 
 class DocumentsPerLeaf(UnsupervisedMetric):
     """Metric that returns the number of documents in each leaf node."""
-    
-    def __call__(self, root: TreeNode, **kwargs) -> list[int]:
+    def __init__(self, pool_fn=mean,) -> None:
+        super().__init__()
+        self.pool_fn = pool_fn
+        
+    def __call__(self, root: TreeNode,  **kwargs) -> list[int]:
         """
         Get the number of documents in each leaf node.
         
@@ -251,7 +254,7 @@ class DocumentsPerLeaf(UnsupervisedMetric):
         Returns:
             List of document counts for each leaf node
         """
-        return _documents_per_leaf(root)
+        return self.pool_fn(_documents_per_leaf(root))
 
 
 def _count_documents_in_node(node: TreeNode) -> int:
