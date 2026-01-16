@@ -10,16 +10,18 @@ def run():
 
     CONFIG = toml.load(Path(__file__).parent / 'experiment_config.toml')
     EXPERIMENT_PATH = Path(__file__).parent / 'build_trees.py'
-    for model, strategy in product(CONFIG['models'], CONFIG['strategies']):
+    for model, strategy, nli_strategy, dataset_name in product(CONFIG['models'], CONFIG['strategies'], CONFIG['strategies_nli'], CONFIG['dataset']):
         wandb.init(project=PROJECT_NAME, config=
         {
             "model": model,
             "strategy": strategy,
-            "depth": 4,
+            "nli_selection_strategy": nli_strategy,
+            "depth": 6,
             "fraction": 0.1,
+            "dataset_name": dataset_name,
         })
         
-        command_line = f"python {EXPERIMENT_PATH} --model {model} --strategy {strategy} --depth 4 --frac 0.1"
+        command_line = f"python {EXPERIMENT_PATH} --model {model} --strategy {strategy} --nli_selection_strategy {nli_strategy} --depth 6 --frac 0.1 --dataset_name {dataset_name}"
         subprocess.run(command_line.split())       
         subprocess.run(["ollama", "stop", model])
         print("Stopped model")

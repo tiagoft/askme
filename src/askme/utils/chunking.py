@@ -202,6 +202,7 @@ class NLIWithChunkingAndPooling:
                 return_tensors='pt',
                 padding=True,
                 truncation=True,
+                max_length=512,
             ).to(self.device)
             
             with torch.no_grad():

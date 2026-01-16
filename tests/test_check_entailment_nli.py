@@ -44,13 +44,13 @@ def test_nli_with_chunking_and_pooling():
     nli_model = NLIWithChunkingAndPooling(
         nli_model = model,
         tokenizer = tokenizer,
-        chunk_size=50,
-        overlap=10,
+        chunk_size=200,
+        overlap=50,
         device='cpu'
     )
     
-    premise = ["This is a long premise text. " * 100,
-                "Another long premise text goes here." * 100]
+    premise = ["This is a long premise text. " * 1000,
+                "Another long premise text goes here." * 10]
     hypothesis = "This is a hypothesis."
     
     results = nli_model(
