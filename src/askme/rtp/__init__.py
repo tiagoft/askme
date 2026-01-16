@@ -3,6 +3,9 @@ def __getattr__(name):
     if name in ('RTPBuilder', 'RTPRecursion'):
         from .rtp_builder import RTPBuilder, RTPRecursion
         return RTPBuilder if name == 'RTPBuilder' else RTPRecursion
+    elif name in ('KMeansTreeBuilder', 'KMeansTreeRecursion'):
+        from .kmeans_tree_builder import KMeansTreeBuilder, KMeansTreeRecursion
+        return KMeansTreeBuilder if name == 'KMeansTreeBuilder' else KMeansTreeRecursion
     elif name in ('TreeNode', 'SplitMetrics'):
         from .tree_models import TreeNode, SplitMetrics
         return TreeNode if name == 'TreeNode' else SplitMetrics
@@ -114,6 +117,8 @@ def __getattr__(name):
 __all__ = [
     'RTPBuilder',
     'RTPRecursion',
+    'KMeansTreeBuilder',
+    'KMeansTreeRecursion',
     'TreeNode',
     'SplitMetrics',
     'calculate_node_purity',
