@@ -646,6 +646,7 @@ class RTPRecursion:
         Returns:
             tuple[TreeNode, SplitMetrics]: The node for this subset and accumulated metrics
         """
+        print("Entering recursion at depth", depth, "with", len(document_indices), "documents.")
         # Get the subset of documents for this node
         node_documents = [text_collection[i] for i in document_indices]
 

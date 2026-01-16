@@ -45,8 +45,8 @@ def run_rtp_evaluation(
         max_retries=10,
         min_split_ratio=0.1,
         max_split_ratio=0.9,
-        nli_batch_size=1,
-        chunk_size=200,
+        nli_batch_size=4,
+        chunk_size=150,
         overlap=50,
         alpha=1e-2,
         verbose=True,
@@ -61,7 +61,7 @@ def run_rtp_evaluation(
     print("\nInitializing RTPRecursion...")
     recursion = RTPRecursion(
         builder=builder,
-        min_node_size=30,  # Don't split nodes with fewer than 5 documents
+        min_node_size=200,  # Don't split nodes with fewer than 200 documents
         min_split_ratio=0.1,  # Split should have at least 10% in smaller child
         max_split_ratio=0.9,  # Split should have at most 90% in larger child
         max_depth=max_depth,  # Maximum tree depth

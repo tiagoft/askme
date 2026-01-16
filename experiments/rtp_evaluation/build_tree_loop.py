@@ -16,12 +16,12 @@ def run():
             "model": model,
             "strategy": strategy,
             "nli_selection_strategy": nli_strategy,
-            "depth": 6,
+            "depth": 10,
             "fraction": 0.1,
             "dataset_name": dataset_name,
         })
         
-        command_line = f"python {EXPERIMENT_PATH} --model {model} --strategy {strategy} --nli_selection_strategy {nli_strategy} --depth 6 --frac 0.1 --dataset_name {dataset_name}"
+        command_line = f"python {EXPERIMENT_PATH} --model {model} --strategy {strategy} --nli_selection_strategy {nli_strategy} --depth 10 --frac 0.1 --dataset_name {dataset_name}"
         subprocess.run(command_line.split())       
         subprocess.run(["ollama", "stop", model])
         print("Stopped model")

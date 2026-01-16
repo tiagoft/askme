@@ -4,11 +4,13 @@ import torch
 import numpy as np
 import pickle
 from tqdm import tqdm 
+import re
 
 def chunk_text(
     text: str,
     chunk_size: int = 350,
     overlap: int = 50,
+    max_characters: int = 1000,
 ) -> list[str]:
     """
     Split text into chunks of specified word count with overlap.
@@ -17,19 +19,28 @@ def chunk_text(
         text: The text to split into chunks
         chunk_size: Number of words per chunk (default: 350)
         overlap: Number of words to overlap between chunks (default: 50)
+        max_characters: Maximum number of characters to use in each chunk (default: 1000)
     
     Returns:
         List of text chunks
     """
-    words = text.split()
+    ascii_text = text.encode('ascii', 'ignore').decode('ascii')
+    ascii_text = ''.join(c for c in ascii_text if c.isprintable() or c in '\n\t ')
+    ascii_text = ' '.join(ascii_text.split())
+    ascii_text = re.sub(r'\S{15,}', '', ascii_text)
+    ascii_text = re.sub(r'--+', '', ascii_text)
+    
+    words = ascii_text.split()
+    words = [word for word in words if re.fullmatch(r'[a-zA-Z0-9]+', word) and len(word) < 10]
     if len(words) <= chunk_size:
-        return [text]
+        return [ascii_text]
 
     chunks = []
     start = 0
     while start < len(words):
         end = start + chunk_size
         chunk = ' '.join(words[start:end])
+        chunk = chunk[:max_characters]
         chunks.append(chunk)
 
         # Move forward by (chunk_size - overlap) words
@@ -147,6 +158,7 @@ class NLIWithChunkingAndPooling:
                  tokenizer,
                  batch_size: int = 8,
                  chunk_size: int = 350,
+                 max_characters: int = 2000,
                  overlap: int = 50,
                  device: str = 'cuda:0',
                  chunk_fn: callable = chunk_text,
@@ -159,6 +171,7 @@ class NLIWithChunkingAndPooling:
         self.label_names = label_names
         self.chunk_fn = chunk_fn
         self.batch_size = batch_size
+        self.max_characters = max_characters
         
     def __call__(
         self,
@@ -172,6 +185,7 @@ class NLIWithChunkingAndPooling:
         Args:
             premise: The premise text
             hypothesis: The hypothesis text
+            max_characters: Hard limit for maximum characters per chunk
             **kwargs: Additional arguments to pass to the NLI model
         Returns:
             Tuple of (is_entailed, entailment_score, contradiction_score, P_entailment)
@@ -184,6 +198,7 @@ class NLIWithChunkingAndPooling:
                 text,
                 chunk_size=self.chunk_size,
                 overlap=self.overlap,
+                max_characters=self.max_characters
             )
         )
         loader = DataLoader(
@@ -196,18 +211,45 @@ class NLIWithChunkingAndPooling:
         all_results = []
         for data in tqdm(loader):
             # Prepare inputs for NLI model
-            inputs = self.tokenizer(
-                data['chunks'],
-                [hypothesis] * len(data['chunks']),
-                return_tensors='pt',
-                padding=True,
-                truncation=True,
-                max_length=512,
-            ).to(self.device)
+            try:
+                inputs = self.tokenizer(
+                    data['chunks'],
+                    [hypothesis] * len(data['chunks']),
+                    return_tensors='pt',
+                    padding=True,
+                    truncation="only_first",
+                    max_length=512,
+                    return_overflowing_tokens=True,
+                ).to(self.device)
+            except ValueError as e:
+                print(f"Error tokenizing chunks: {e}")
+                print(data['chunks'])
+                print(hypothesis)
+
+            if inputs.overflowing_tokens is not None and inputs.overflowing_tokens.any():
+                print("\nSome chunks were truncated! Overflowing token counts per example:")
+                overflow_counts = inputs.overflowing_tokens.sum(dim=1).tolist()
+                
+                for i, count in enumerate(overflow_counts):
+                    if count > 0:
+                        text_preview = self.tokenizer.decode(inputs.input_ids[i], skip_special_tokens=True)
+                        print(f"  Chunk {i:2d} → {count:3d} tokens overflowed | Text: {text_preview}")
+            model_inputs = {
+                k: v for k, v in inputs.items()
+                if k not in ['overflowing_tokens', 'num_truncated_tokens', 'overflow_to_sample_mapping']
+            }
+            inputs = model_inputs
+            # print(f"Processing {len(data['chunks'])} chunks...")
+            # print(f"Input token shape: {inputs['input_ids'].shape}")
+            # print(f"Text chunks: {data['chunks'][:2]} ...")
+            # print(f"Overflowing chunks: {data['chunks'][-2:]} ...")
             
             with torch.no_grad():
                 outputs = self.nli_model(**inputs, **kwargs)
                 logits = outputs.logits
+            
+            del inputs # free memory
+            torch.cuda.empty_cache()
             
             boundaries = data['boundaries']
             
