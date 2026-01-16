@@ -1,19 +1,24 @@
 """RTPBuilder class for operationalizing the RTP (Retrieval-based Tree Partitioning) algorithm."""
 
-import faiss
-import numpy as np
 import time
 from collections.abc import Iterable
+from pathlib import Path
 from typing import Optional, Union
+
+import faiss
+import numpy as np
 from tqdm import tqdm
 
-from .make_collection_index import make_faiss_index
-from .label_propagation import propagate_labels, make_knn_graph, sparse_affinity
-from .tree_models import TreeNode, SplitMetrics
-from ..utils import TextEmbeddingWithChunker, kmeans_with_faiss, select_n_random_indices, vote_k_sampling
-from ..makequestions import api, makequestion
+from askme.utils import NLIWithChunkingAndPooling
+
 from ..askquestions import check_entailment, models
-from pathlib import Path
+from ..makequestions import api, makequestion
+from ..utils import (TextEmbeddingWithChunker, kmeans_with_faiss,
+                     select_n_random_indices, vote_k_sampling)
+from .label_propagation import (make_knn_graph, propagate_labels,
+                                sparse_affinity)
+from .make_collection_index import make_faiss_index
+from .tree_models import SplitMetrics, TreeNode
 
 
 class RTPBuilder:
@@ -61,6 +66,7 @@ class RTPBuilder:
         n_medoids: int = 4,
         n_documents_to_answer: Union[int, str, float] = 'all',
         knn_neighbors: int = 2,
+        nli_batch_size: int = 16,
         alpha: float = 0.99,
         max_iter: int = 100,
         tol: float = 1e-3,
@@ -70,6 +76,8 @@ class RTPBuilder:
         verbose: bool = False,
         cache_dir: str | None = None,
         selection_strategy : Union['kmeans', 'random', 'votek'] = 'kmeans',
+        nli_selection_strategy: Union['kmeans', 'random', 'votek'] = 'kmeans',
+        nli_batched: bool = True,
     ):
         """
         Initialize the RTPBuilder with all necessary models.
@@ -84,6 +92,7 @@ class RTPBuilder:
             n_medoids: Number of medoids for hypothesis generation
             n_documents_to_answer: Number of documents to label with NLI
             knn_neighbors: Number of neighbors for k-NN graph
+            nli_batch_size: Batch size for NLI model
             alpha: Alpha parameter for label propagation (0 < alpha < 1)
             max_iter: Maximum iterations for label propagation
             tol: Tolerance for label propagation convergence
@@ -92,12 +101,17 @@ class RTPBuilder:
                            If None, no minimum check is performed.
             max_split_ratio: Maximum acceptable split ratio (proportion in smaller child).
                            If None, no maximum check is performed.
+            verbose: Whether to print verbose output during execution
+            cache_dir: Directory to cache embeddings (default: None)
+            selection_strategy: Strategy for selecting medoids ('kmeans', 'random', 'votek')
+            nli_batched: Whether to use batched NLI calls (default: True)
         """
         self.use_gpu = use_gpu
         self.embedding_model_name = embedding_model_name
         self.nli_model_name = nli_model_name
         self.llm_model_name = llm_model_name
         self.chunk_size = chunk_size
+        self.chunk_overlap = overlap
         self.overlap = overlap
         self.n_medoids = n_medoids
         self.n_documents_to_answer = n_documents_to_answer
@@ -110,6 +124,9 @@ class RTPBuilder:
         self.max_split_ratio = max_split_ratio
         self.verbose = verbose
         self.selection_strategy = selection_strategy
+        self.nli_batch_size = nli_batch_size
+        self.nli_batched = nli_batched
+        self.nli_selection_strategy = nli_selection_strategy
         
 
 
@@ -150,14 +167,26 @@ class RTPBuilder:
         # Initialize NLI model
         self.nli_model, self.nli_tokenizer = models.make_nli_model(
             model_name=nli_model_name)
+
         if use_gpu:
             self.nli_model = self.nli_model.to('cuda')
+
+        if nli_batched:
+            self.nli_batching_model = NLIWithChunkingAndPooling(
+                nli_model=self.nli_model,
+                tokenizer=self.nli_tokenizer,
+                chunk_size=chunk_size,
+                overlap=overlap,
+                device=device,
+                batch_size=nli_batch_size,
+            )
 
         # Initialize LLM model
         if llm_model_name.startswith('gpt-4o'):
             self.llm_model = api.make_azure_model(llm_model_name)
         else:
             self.llm_model = api.make_ollama_model(llm_model_name)
+
 
     def __call__(
         self,
@@ -207,6 +236,8 @@ class RTPBuilder:
         metrics.faiss_search_time_ms = (time.time() - faiss_start) * 1000
 
         # Step 2: Get medoids via k-means for hypothesis generation
+        
+        t_initial_medoid = time.time()
         if self.verbose:
             print(
                 f"Selecting {self.n_medoids} elements for hypothesis generation..."
@@ -246,6 +277,7 @@ class RTPBuilder:
             )
             medoids = [text_collection[idx] for idx in medoid_indices]
 
+        metrics.medoid_selection_time_ms = (time.time() - t_initial_medoid) * 1000
         if self.verbose:
             print(f"Medoid indices: {medoid_indices}")
 
@@ -300,6 +332,7 @@ class RTPBuilder:
 
             # Step 4: Use NLI to answer the question for selected documents
 
+            t_initial_kmeans = time.time()
             if self.n_documents_to_answer == 'same':
                 n_docs_to_label = n_clusters
                 doc_indices = medoid_indices
@@ -313,14 +346,36 @@ class RTPBuilder:
                 else:
                     n_docs_to_label = int(self.n_documents_to_answer)
                 n_docs_to_label = min(n_docs_to_label, len(text_collection))
-                print("Finding documents to label via k-means...")
-                if len(doc_indices) == 0:
+                
+                
+                
+                if self.nli_selection_strategy == 'random':
+                    if self.verbose:
+                        print("Selecting documents to label via random selection...")
+                    doc_indices = select_n_random_indices(
+                        total_size=len(text_collection),
+                        n_select=n_docs_to_label,
+                        seed=1234 + attempt,
+                    )
+                elif self.nli_selection_strategy == 'votek':
+                    if self.verbose:
+                        print("Selecting documents to label via vote-k sampling...")
+                    doc_indices = vote_k_sampling(
+                        faiss_index,
+                        embeddings,
+                        n_clusters=n_docs_to_label,
+                        k_neighbors=30,
+                    )
+                else:  # Default to kmeans    
+                    print("Finding documents to label via k-means...")
                     doc_indices = kmeans_with_faiss(
                         faiss_index=faiss_index,
                         X=embeddings,
                         n_clusters=n_docs_to_label,
                     )
 
+            metrics.kmeans_time_ms += (time.time() - t_initial_kmeans) * 1000
+            
                 # doc_indices = true_k_medoids_faiss(embeddings=embeddings,
                 #                                    n_clusters=n_docs_to_label,
                 #                                    nredo=5,
@@ -333,22 +388,49 @@ class RTPBuilder:
             device = 'cuda' if self.use_gpu else 'cpu'
             nli_confidences = []
             nli_start = time.time()
-            for doc_index in tqdm(doc_indices):
-                document = text_collection[doc_index]
-                pooled_results = check_entailment.pool_nli_scores(
-                    check_fn=check_entailment.check_entailment_nli,
-                    premise=document,
+            
+            # Unbatched NLI calls to allow progress bar
+            if self.nli_batched is False:
+                for doc_index in tqdm(doc_indices):
+                    document = text_collection[doc_index]
+                    pooled_results = check_entailment.pool_nli_scores(
+                        check_fn=check_entailment.check_entailment_nli,
+                        premise=document,
+                        hypothesis=hypothesis,
+                        chunk_size=200,
+                        overlap=20,
+                        model=self.nli_model,
+                        tokenizer=self.nli_tokenizer,
+                        device=device,
+                    )
+                    entails, entailment_score, contradiction_score, P_entailment = pooled_results
+                    answers[doc_index] = 1 if entails else 0
+                    nli_confidences.append(P_entailment)
+                    metrics.nli_calls += 1
+        
+            # Batched NLI
+            else:
+                if self.verbose:
+                    print("Using batched NLI calls...")
+                
+                premises = [
+                    text_collection[doc_index] for doc_index in doc_indices
+                ]
+                batched_results = self.nli_batching_model(
+                    premise=premises,
                     hypothesis=hypothesis,
-                    chunk_size=200,
-                    overlap=20,
-                    model=self.nli_model,
-                    tokenizer=self.nli_tokenizer,
-                    device=device,
                 )
-                entails, entailment_score, contradiction_score, P_entailment = pooled_results
-                answers[doc_index] = 1 if entails else 0
-                nli_confidences.append(P_entailment)
-                metrics.nli_calls += 1
+                if self.verbose:
+                    print(f"Text premises: {len(premises)}")
+                    print(f"Batched NLI returned {len(batched_results)} results.")
+                
+                for i, doc_index in enumerate(doc_indices):
+                    entails, entailment_score, contradiction_score, P_entailment = batched_results[
+                        i]
+                    answers[doc_index] = 1 if entails else 0
+                    nli_confidences.append(P_entailment)
+                    metrics.nli_calls += 1
+            
             metrics.nli_time_ms += (time.time() - nli_start) * 1000
 
             if self.verbose:
@@ -458,6 +540,23 @@ class RTPBuilder:
         metrics.total_time_ms = (time.time() - start_time) * 1000
         root.blacklist = blacklist
 
+        if self.verbose:
+            print(f"RTPBuilder execution completed in {metrics.total_time_ms:.2f} ms")
+            print(f"Total LLM input tokens: {metrics.llm_input_tokens}")
+            print(f"Total LLM output tokens: {metrics.llm_output_tokens}")
+            print(f"Total NLI calls: {metrics.nli_calls}")
+            print(f"Total FAISS indexing time: {metrics.faiss_search_time_ms:.2f} ms")
+            print(f"Total Medoid selection time for LLM: {metrics.medoid_selection_time_ms:.2f} ms")
+            print(f"Total KMeans time for NLI: {metrics.kmeans_time_ms:.2f} ms")
+            print(f"Total LLM request time: {metrics.llm_request_time_ms:.2f} ms")
+            print(f"Total NLI time: {metrics.nli_time_ms:.2f} ms")
+            print(f"Total Label Propagation time: {metrics.label_propagation_time_ms:.2f} ms")
+            print(f"Total attempts: {metrics.n_attempts}")
+            print(f"Medoid NLI confidence avg: {metrics.medoid_nli_confidence_avg:.4f}")
+            print(f"Split ratio: {metrics.split_ratio:.4f}")
+            print(f"Split entropy: {metrics.split_entropy:.4f}")
+        
+
         if return_metrics:
             return root, metrics
         return root
@@ -514,6 +613,9 @@ class RTPRecursion:
         Returns:
             tuple[TreeNode, SplitMetrics]: Root node of the tree and global metrics
         """
+        if self.verbose:
+            print("Starting RTPRecursion...")
+        
         # Convert to list and store original text collection
         text_collection = list(X)
 
@@ -544,6 +646,7 @@ class RTPRecursion:
         Returns:
             tuple[TreeNode, SplitMetrics]: The node for this subset and accumulated metrics
         """
+        print("Entering recursion at depth", depth, "with", len(document_indices), "documents.")
         # Get the subset of documents for this node
         node_documents = [text_collection[i] for i in document_indices]
 

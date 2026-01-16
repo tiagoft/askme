@@ -1,15 +1,23 @@
 models = [
-"qwen3:8b",
 "gpt-oss:20b",
+#"qwen3:8b",
 "qwen3:14b",
-"llama3.1:8b",
-"llama3.2:3b",
+#"llama3.1:8b",
+#"llama3.2:3b",
 ]
 
 strategies = [
-"random",
+#"random",
 "kmeans",
 "votek",
 ]
 
+strategies_nli = [
+#    "random",
+    "kmeans",
+]
 
+dataset = [
+    "SetFit/20_newsgroups",
+    "fancyzhx/ag_news",
+]

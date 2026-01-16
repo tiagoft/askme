@@ -2,6 +2,7 @@ from askme.askquestions import check_entailment, models
 from askme.utils import NLIWithChunkingAndPooling
 import pytest
 import transformers
+import numpy as np
 
 #     check_entailment_nli(
 #     model,
@@ -43,13 +44,13 @@ def test_nli_with_chunking_and_pooling():
     nli_model = NLIWithChunkingAndPooling(
         nli_model = model,
         tokenizer = tokenizer,
-        chunk_size=50,
-        overlap=10,
+        chunk_size=200,
+        overlap=50,
         device='cpu'
     )
     
-    premise = ["This is a long premise text. " * 100,
-                "Another long premise text goes here." * 100]
+    premise = ["This is a long premise text. " * 1000,
+                "Another long premise text goes here." * 10]
     hypothesis = "This is a hypothesis."
     
     results = nli_model(
@@ -61,3 +62,11 @@ def test_nli_with_chunking_and_pooling():
     for res in results:
         assert isinstance(res, tuple)
         assert len(res) == 4
+        
+    p1 = premise[0]
+    p2 = premise[1]
+    
+    r1 = nli_model(premise=[p1], hypothesis=hypothesis)
+    r2 = nli_model(premise=[p2], hypothesis=hypothesis)
+    assert np.allclose(r1[0][1:3], results[0][1:3])
+    assert np.allclose(r2[0][1:3], results[1][1:3])

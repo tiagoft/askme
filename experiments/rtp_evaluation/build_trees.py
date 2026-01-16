@@ -13,50 +13,7 @@ from askme.rtp import (
 from datasets import load_dataset
 import numpy as np
 from typing import List, Tuple
-
-
-def load_agnews_sample(n_samples: int | None = 500,
-                       seed: int = 42) -> Tuple[List[str], List[int]]:
-    """
-    Load a sample of n documents from the AG News dataset.
-    
-    Args:
-        n_samples: Number of samples to load
-        seed: Random seed for reproducibility
-        
-    Returns:
-        Tuple of (texts, labels)
-    """
-    print(f"Loading {n_samples} samples from AG News dataset...")
-    dataset = load_dataset('fancyzhx/ag_news', split='train')
-
-    # Set random seed for reproducibility
-    np.random.seed(seed)
-
-    # Sample n_samples indices
-    total_size = len(dataset)
-    if n_samples is None:
-        n_samples = total_size
-    indices = np.random.choice(total_size,
-                               size=min(n_samples, total_size),
-                               replace=False)
-
-    # Extract texts and labels
-    texts = []
-    labels = []
-    for idx in indices:
-        item = dataset[int(idx)]
-        # Combine title and description for richer text
-        text = item['text']
-        texts.append(text)
-        labels.append(item['label'])
-
-    print(f"Loaded {len(texts)} documents")
-    print(f"Label distribution: {np.bincount(labels)}")
-    print(f"Classes: 0=World, 1=Sports, 2=Business, 3=Sci/Tech")
-
-    return texts, labels
-
+from load_dataset import load_dataset_sample
 
 def run_rtp_evaluation(
     texts: List[str],
@@ -65,6 +22,7 @@ def run_rtp_evaluation(
     n_documents_to_answer: int | float = 0.1,
     max_depth: int = 4,
     selection_strategy: str = 'kmeans',
+    nli_selection_strategy: str = 'kmeans',
 ):
     """
     Run RTP Recursion on the dataset and evaluate.
@@ -87,10 +45,15 @@ def run_rtp_evaluation(
         max_retries=10,
         min_split_ratio=0.1,
         max_split_ratio=0.9,
+        nli_batch_size=4,
+        chunk_size=150,
+        overlap=50,
         alpha=1e-2,
         verbose=True,
         cache_dir='~/.askme_cache',
         selection_strategy=selection_strategy,
+        nli_selection_strategy=nli_selection_strategy,
+
     )
     print("RTPBuilder initialized!")
 
@@ -98,7 +61,7 @@ def run_rtp_evaluation(
     print("\nInitializing RTPRecursion...")
     recursion = RTPRecursion(
         builder=builder,
-        min_node_size=30,  # Don't split nodes with fewer than 5 documents
+        min_node_size=200,  # Don't split nodes with fewer than 200 documents
         min_split_ratio=0.1,  # Split should have at least 10% in smaller child
         max_split_ratio=0.9,  # Split should have at most 90% in larger child
         max_depth=max_depth,  # Maximum tree depth
@@ -124,7 +87,8 @@ def run_rtp_evaluation(
         f"Total Label Propagation Time: {global_metrics.label_propagation_time_ms:.2f} ms"
     )
     print(f"Total Time: {global_metrics.total_time_ms:.2f} ms")
-    print(f"Total LLM Request Time: {global_metrics.llm_request_time_ms:.2f} ms")
+    print(
+        f"Total LLM Request Time: {global_metrics.llm_request_time_ms:.2f} ms")
     print(f"Total NLI Time: {global_metrics.nli_time_ms:.2f} ms")
     print(f"Number of Nodes: {global_metrics.num_nodes}")
 
@@ -146,17 +110,24 @@ def run_rtp_evaluation(
     return tree_root
 
 
-def main(model, strategy, depth, frac):
+def main(model,
+         strategy,
+         nli_selection_strategy,
+         depth,
+         frac,
+         dataset_name='fancyzhx/ag_news'):
     """Main function to run the complete evaluation."""
     print("=" * 80)
-    print("AG NEWS DATASET EVALUATION: RTP RECURSION")
+    print(f"{dataset_name.upper()} DATASET EVALUATION: RTP RECURSION")
     print(
-        f"Model: {model}, Strategy: {strategy}, Max Depth: {depth}, Fraction to Answer: {frac}"
+        f"Model: {model}, Strategy: {strategy}, NLI Selection Strategy: {nli_selection_strategy}, Max Depth: {depth}, Fraction to Answer: {frac}"
     )
     print("=" * 80)
 
     # Load dataset
-    texts, labels = load_agnews_sample(n_samples=None, seed=42)
+    texts, labels = load_dataset_sample(n_samples=None,
+                                        seed=42,
+                                        dataset_name=dataset_name)
     n_samples = len(texts)
     print(f"\nTotal samples to evaluate: {n_samples}")
 
@@ -168,16 +139,21 @@ def main(model, strategy, depth, frac):
         n_documents_to_answer=frac,
         max_depth=depth,
         selection_strategy=strategy,
+        nli_selection_strategy=nli_selection_strategy,
     )
-
     # Save the rtp_tree for further analysis if needed
     json_string = rtp_tree.model_dump_json()
+    dataset_tag = dataset_name.replace('/', '_')
 
-    with open(f"rtp_tree_on_small_agnews_{model}_{strategy}.json", 'w') as f:
+    with open(
+            f"rtp_tree_{dataset_tag}_{model}_{strategy}_{nli_selection_strategy}.json",
+            'w') as f:
         f.write(json_string)
 
     pdf_path = tree_to_pdf.tree_to_pdf(
-        rtp_tree, output_path=f"tree_agnews_rtp_{model}_{strategy}")
+        rtp_tree,
+        output_path=
+        f"tree_{dataset_tag}_{model}_{strategy}_{nli_selection_strategy}")
     print(f"PDF saved to: {pdf_path}")
     # run ollama stop on terminal using exec
     #exec(f"ollama stop {model}")
@@ -200,6 +176,10 @@ def read_input_arguments():
                         type=str,
                         required=True,
                         help="Selection strategy")
+    parser.add_argument("--nli_selection_strategy",
+                        type=str,
+                        required=True,
+                        help="NLI Selection strategy")
     parser.add_argument("--depth",
                         type=int,
                         default=4,
@@ -208,6 +188,10 @@ def read_input_arguments():
                         type=float,
                         default=0.25,
                         help="Fraction of documents to answer")
+    parser.add_argument("--dataset_name",
+                        type=str,
+                        default="fancyzhx/ag_news",
+                        help="Dataset name")
 
     # Parse arguments
     args = parser.parse_args()
@@ -220,6 +204,8 @@ if __name__ == "__main__":
     main(
         model=args.model,
         strategy=args.strategy,
+        nli_selection_strategy=args.nli_selection_strategy,
         depth=args.depth,
         frac=args.frac,
+        dataset_name=args.dataset_name,
     )
