@@ -201,7 +201,7 @@ class NormalizedMutualInformation(SupervisedMetric):
     and true labels, normalized to be between 0 and 1.
     """
     
-    def call(self, root: TreeNode, labels: List[int], use_leaves_only: bool = True, average_method: str = 'arithmetic', **kwargs) -> float:
+    def __call__(self, root: TreeNode, labels: List[int], use_leaves_only: bool = True, average_method: str = 'arithmetic', **kwargs) -> float:
         """
         Calculate NMI for the tree.
         
@@ -251,7 +251,7 @@ class AdjustedRandIndex(SupervisedMetric):
     and true labels, adjusted for chance.
     """
     
-    def call(self, root: TreeNode, labels: List[int], use_leaves_only: bool = True, **kwargs) -> float:
+    def __call__(self, root: TreeNode, labels: List[int], use_leaves_only: bool = True, **kwargs) -> float:
         """
         Calculate ARI for the tree.
         
@@ -305,7 +305,7 @@ class HomogeneityCompletenessVMeasure(SupervisedMetric):
     Returns all three metrics as a dictionary.
     """
     
-    def call(self, root: TreeNode, labels: List[int], use_leaves_only: bool = True, beta: float = 1.0, **kwargs) -> Dict[str, float]:
+    def __call__(self, root: TreeNode, labels: List[int], use_leaves_only: bool = True, beta: float = 1.0, **kwargs) -> Dict[str, float]:
         """
         Calculate Homogeneity, Completeness, and V-measure for the tree.
         
@@ -352,7 +352,7 @@ class Accuracy(SupervisedMetric):
     Each document is assigned the majority class of the node it belongs to.
     """
     
-    def call(self, root: TreeNode, labels: List[int], use_leaves_only: bool = True, **kwargs) -> float:
+    def __call__(self, root: TreeNode, labels: List[int], use_leaves_only: bool = True, **kwargs) -> float:
         """
         Calculate accuracy for the tree.
         
@@ -399,7 +399,7 @@ class F1Score(SupervisedMetric):
     Each document is assigned the majority class of the node it belongs to.
     """
     
-    def call(self, root: TreeNode, labels: List[int], use_leaves_only: bool = True, average: str = 'weighted', **kwargs) -> float:
+    def __call__(self, root: TreeNode, labels: List[int], use_leaves_only: bool = True, average: str = 'weighted', **kwargs) -> float:
         """
         Calculate F1-score for the tree.
         
@@ -448,7 +448,7 @@ class ConfusionMatrix(SupervisedMetric):
     Each document is assigned the majority class of the node it belongs to.
     """
     
-    def call(self, root: TreeNode, labels: List[int], use_leaves_only: bool = True, **kwargs) -> np.ndarray:
+    def __call__(self, root: TreeNode, labels: List[int], use_leaves_only: bool = True, **kwargs) -> np.ndarray:
         """
         Calculate confusion matrix for the tree.
         
