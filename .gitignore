@@ -24,3 +24,5 @@ demo_tree*.pdf
 demo_tree*.png
 *.pdf
 *.png
+
+trees_for_ijcnn/*
