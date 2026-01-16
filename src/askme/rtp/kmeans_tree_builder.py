@@ -218,6 +218,19 @@ class KMeansTreeBuilder:
 
         if len(text_collection) == 0:
             raise ValueError("Text collection cannot be empty")
+        
+        # Handle edge case: can't split with k-means if we have less than 2 documents
+        if len(text_collection) < 2:
+            if self.verbose:
+                print("Collection has less than 2 documents, returning leaf node.")
+            root = TreeNode(
+                documents=list(range(len(text_collection))),
+                question=None,
+            )
+            if return_metrics:
+                metrics.success = False
+                return root, metrics
+            return root
 
         # Step 1: Vectorize documents and create FAISS index
         faiss_start = time.time()

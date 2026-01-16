@@ -144,6 +144,22 @@ def test_kmeans_tree_builder_call_empty_collection_raises_error():
 
 
 @pytest.mark.llm
+def test_kmeans_tree_builder_single_document():
+    """Test that KMeansTreeBuilder handles single document gracefully."""
+    builder = KMeansTreeBuilder(use_gpu=False)
+    
+    single_doc = ["This is a single document."]
+    result = builder(single_doc)
+    
+    # Should return a leaf node
+    assert isinstance(result, TreeNode)
+    assert result.documents == [0]
+    assert result.question is None
+    assert result.left is None
+    assert result.right is None
+
+
+@pytest.mark.llm
 def test_kmeans_tree_builder_multiple_calls():
     """Test that KMeansTreeBuilder can be called multiple times."""
     builder = KMeansTreeBuilder(use_gpu=False, n_medoids_per_cluster=1, n_documents_to_answer=3)
