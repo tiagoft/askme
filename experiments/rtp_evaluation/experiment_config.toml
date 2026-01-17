@@ -19,5 +19,5 @@ strategies_nli = [
 
 dataset = [
     "SetFit/20_newsgroups",
-    "fancyzhx/ag_news",
+#    "fancyzhx/ag_news",
 ]

@@ -2,9 +2,8 @@ import os
 import sys
 import json
 import numpy as np
-import pandas as pd 
-from tqdm import tqdm 
-
+import pandas as pd
+from tqdm import tqdm
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
@@ -31,18 +30,26 @@ from askme.rtp.metrics.supervised_metrics import (
 
 from load_dataset import load_dataset_sample
 
+
 def _pooling_fn(values):
     min_ = np.min(values)
     max_ = np.max(values)
     mu = np.mean(values)
     std = np.std(values)
     relative_std = std / mu if mu != 0 else 0
-    return relative_std
-    #return {'mean': mu, 'std': std, 'relative_std': relative_std, 'min': min_, 'max': max_}    
+    #return min_ , max_, mu, std, relative_std
+    return {
+        'mean': mu,
+        'std': std,
+        'relative_std': relative_std,
+        'min': min_,
+        'max': max_
+    }
+
 
 def get_run_parameters(filename: str) -> dict:
     """Extract run parameters from the filename."""
-    
+
     base = os.path.basename(filename)[:-len('.json')]
     #print(base)
     parts = base.split('_')
@@ -55,26 +62,22 @@ def get_run_parameters(filename: str) -> dict:
         params['nli_selection_strategy'] = parts[-1]
     return params
 
+
 class DatasetLoader:
     """Class to load dataset samples."""
-    
-    def __init__(
-        self,
-        n_samples: int | None = 500,
-        seed: int = 42,
-        dataset_name: str = 'fancyzhx/ag_news'
-    ):   
-        texts, labels = load_dataset_sample(
-            n_samples=n_samples,
-            seed=seed,
-            dataset_name=dataset_name
-        )
+
+    def __init__(self,
+                 n_samples: int | None = 500,
+                 seed: int = 42,
+                 dataset_name: str = 'fancyzhx/ag_news'):
+        texts, labels = load_dataset_sample(n_samples=n_samples,
+                                            seed=seed,
+                                            dataset_name=dataset_name)
         self.texts = texts
         self.labels = labels
-    
-    
 
-def evaluate(filename : str, dataset: DatasetLoader) -> pd.DataFrame:
+
+def evaluate(filename: str, dataset: DatasetLoader) -> pd.DataFrame:
     """Main function to run the tree evaluation."""
     with open(filename, 'rb') as f:
         if filename.endswith('.pkl'):
@@ -82,40 +85,45 @@ def evaluate(filename : str, dataset: DatasetLoader) -> pd.DataFrame:
             tree = pickle.load(f)
         elif filename.endswith('.json'):
             json_data = json.load(f)
-            tree = TreeNode.model_validate_json(json.dumps(json_data))            
+            tree = TreeNode.model_validate_json(json.dumps(json_data))
         else:
             raise ValueError("Unsupported file format. Use .pkl or .json")
     #print(f"Loaded tree type: {type(tree)}")
     unsupervised_metrics = [
         #NumberOfNodes(),
-        #TreeHeight(),
+        TreeHeight(),
         #NumberOfLeafNodes(),
-        TreeNodeUnbalance(),
+        #TreeNodeUnbalance(),
         #DocumentsPerLeaf(pool_fn=_pooling_fn),
         #TreeDocumentUnbalance(),
     ]
-    
+
     if dataset is not None:
         texts = dataset.texts
         labels = dataset.labels
-        
+
     supervised_metrics = [
         NormalizedMutualInformation(),
         AdjustedRandIndex(),
-        HomogeneityCompletenessVMeasure(),
+        #HomogeneityCompletenessVMeasure(),
         Accuracy(),
         F1Score(average='macro'),
         #ConfusionMatrix(),
     ]
-    
+
     output_df = pd.DataFrame(get_run_parameters(filename), index=[0])
-    
-    
+
     #print("Evaluating unsupervised metrics...")
     for metric in unsupervised_metrics:
         result = metric(tree)
+        if isinstance(result, dict):
+            print("Result is dict:", result)
+            for k, v in result.items():
+                output_df[f"{k.capitalize()}"] = [v]
+        else:
+            output_df[metric.__class__.__name__] = [result]
         output_df[metric.__class__.__name__] = [result]
-    
+
     if dataset is not None:
         for metric in supervised_metrics:
             result = metric(tree, dataset.labels)
@@ -124,8 +132,9 @@ def evaluate(filename : str, dataset: DatasetLoader) -> pd.DataFrame:
                     output_df[f"{k.capitalize()}"] = [v]
             else:
                 output_df[metric.__class__.__name__] = [result]
-            
+
     return output_df
+
 
 def read_input_arguments():
     import argparse
@@ -137,11 +146,11 @@ def read_input_arguments():
                         nargs='+',
                         required=True,
                         help="Filename for the input data")
-    parser.add_argument("--dataset",
-                        type=str,
-                        required=False,
-                        help="Dataset name (for supervised and self-supervised metrics)")
-
+    parser.add_argument(
+        "--dataset",
+        type=str,
+        required=False,
+        help="Dataset name (for supervised and self-supervised metrics)")
 
     # Parse arguments
     args = parser.parse_args()
@@ -154,19 +163,16 @@ if __name__ == "__main__":
     print(f"Input arguments: {args}")
     if args.dataset is not None:
         print(f"Loading dataset {args.dataset}...")
-        dataset = DatasetLoader(
-            n_samples=None,
-            dataset_name=args.dataset
-        )
+        dataset = DatasetLoader(n_samples=None, dataset_name=args.dataset)
     else:
         dataset = None
-        
+
     output_dfs = []
     for filename in tqdm(args.filename, desc="Evaluating files"):
-        output_df = evaluate(
-            filename=filename,
-            dataset=dataset
-        )
+        output_df = evaluate(filename=filename, dataset=dataset)
         output_dfs.append(output_df)
     final_df = pd.concat(output_dfs, ignore_index=True)
-    print(final_df)
+    print(final_df.to_latex(
+        index=False,
+        float_format="%.2f",
+    ))

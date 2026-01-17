@@ -39,7 +39,7 @@ def run_rtp_evaluation(
     print("\nInitializing RTPBuilder...")
     builder = RTPBuilder(
         use_gpu=True,
-        n_medoids=15,
+        n_medoids=14,
         n_documents_to_answer=n_documents_to_answer,
         llm_model_name=llm_model_name,
         max_retries=10,
