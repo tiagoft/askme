@@ -5,7 +5,7 @@ This module provides metrics that can be calculated on trees without requiring
 document labels. These metrics help evaluate tree structure and balance.
 """
 
-from .tree_models import TreeNode
+from askme.rtp.tree_models import TreeNode
 from numpy import mean
 
 class UnsupervisedMetric:

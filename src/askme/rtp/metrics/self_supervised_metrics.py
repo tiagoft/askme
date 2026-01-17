@@ -8,7 +8,7 @@ and tree structure, without requiring ground truth labels.
 from typing import List, Optional, Dict, Any
 from abc import ABC, abstractmethod
 import numpy as np
-from .tree_models import TreeNode
+from askme.rtp.tree_models import TreeNode
 
 
 class SelfSupervisedMetric(ABC):

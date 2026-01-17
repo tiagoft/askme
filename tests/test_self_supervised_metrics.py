@@ -9,7 +9,7 @@ import numpy as np
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from askme.rtp.tree_models import TreeNode
-from askme.rtp.self_supervised_metrics import (
+from askme.rtp.metrics.self_supervised_metrics import (
     SelfSupervisedMetric,
     SilhouetteScoreMetric,
     DaviesBouldinScoreMetric,

@@ -17,7 +17,7 @@ from sklearn.metrics import (
     f1_score,
     confusion_matrix,
 )
-from .tree_models import TreeNode
+from askme.rtp.tree_models import TreeNode
 
 
 def get_all_nodes(root: TreeNode) -> List[TreeNode]:

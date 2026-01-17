@@ -8,7 +8,7 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from askme.rtp.tree_models import TreeNode
-from askme.rtp.unsupervised_metrics import (
+from askme.rtp.metrics.unsupervised_metrics import (
     UnsupervisedMetric,
     NumberOfNodes,
     TreeHeight,
