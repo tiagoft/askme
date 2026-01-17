@@ -15,7 +15,40 @@ def crop_text_in_words(text: str, max_words: int) -> str:
         return text
     else:
         return ' '.join(words[:max_words])
+ 
+def make_a_question_about_split(
+    collection_a: list[str],
+    collection_b: list[str],
+    model: openai_models.OpenAIChatModel,
+    retries: int = 10,
+    max_words_per_text: int = 350,
+    blacklist: list[str] = [],
+) -> AgentRunResult[HypothesisAboutCollection]:
+    """Generate a hypothesis about the difference between two collections of texts."""
     
+    system_prompt = rtp_prompts['splitquestion']['system_prompt']
+    
+    cropped_collection_a = [crop_text_in_words(text, max_words_per_text) for text in collection_a]
+    cropped_collection_b = [crop_text_in_words(text, max_words_per_text) for text in collection_b]
+
+    user_prompt = f"Collection A: {cropped_collection_a}\n\nCollection B: {cropped_collection_b}"
+    
+    if blacklist is not None and len(blacklist) > 0:
+        user_prompt += f"\nAvoid the following topics: {blacklist}\n"
+        
+    agent = Agent(
+        model,
+        output_type=HypothesisAboutCollection,
+        retries=retries,
+        instructions=system_prompt,
+    )
+    try:
+        result = agent.run_sync(user_prompt)
+    except UnexpectedModelBehavior as e:
+        raise e
+    
+    return result
+
 
 def make_a_question_about_collection(
     collection: list[str],

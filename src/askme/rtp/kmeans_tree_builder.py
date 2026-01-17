@@ -70,7 +70,7 @@ class KMeansTreeBuilder:
         llm_model_name: str = "gpt-4o-mini",
         chunk_size: int = 50,
         overlap: int = 10,
-        n_medoids_per_cluster: int = 2,
+        n_medoids_per_cluster: int = 7,
         n_documents_to_answer: Union[int, str, float] = 'all',
         knn_neighbors: int = 2,
         nli_batch_size: int = 16,
@@ -85,6 +85,7 @@ class KMeansTreeBuilder:
         selection_strategy: str = 'kmeans',
         nli_selection_strategy: str = 'kmeans',
         nli_batched: bool = True,
+        nli_overrides_kmeans: bool = True,
     ):
         """
         Initialize the KMeansTreeBuilder with all necessary models.
@@ -134,6 +135,7 @@ class KMeansTreeBuilder:
         self.nli_batch_size = nli_batch_size
         self.nli_batched = nli_batched
         self.nli_selection_strategy = nli_selection_strategy
+        self.nli_overrides_kmeans = nli_overrides_kmeans
 
         # Determine device
         device = 'cuda' if use_gpu else 'cpu'
@@ -389,9 +391,9 @@ class KMeansTreeBuilder:
             try:
                 # Combine medoids from both clusters
                 # We present cluster 1 medoids first (these should satisfy the hypothesis)
-                combined_medoids = medoids_1 + medoids_0
-                response = makequestion.make_a_question_about_collection(
-                    collection=combined_medoids,
+                response = makequestion.make_a_question_about_split(
+                    collection_a=medoids_1,
+                    collection_b=medoids_0,
                     model=self.llm_model,
                     retries=15,
                     blacklist=blacklist,
@@ -529,6 +531,28 @@ class KMeansTreeBuilder:
                 print(f"Label propagation completed. Initially labeled: {n_labeled}, "
                       f"Propagated 1s: {n_propagated_1}, Propagated 0s: {n_propagated_0}")
 
+            # Calculate the accuracy between kmeans labels and propagated labels on NLI-labeled documents
+            correct = 0
+            total = 0
+            for doc_index in doc_indices:
+                if cluster_assignments[doc_index] != -1:
+                    if cluster_assignments[doc_index] == propagated_labels[doc_index]:
+                        correct += 1
+                    total += 1
+            if total > 0:
+                accuracy = correct / total
+                metrics.medoid_label_propagation_accuracy = accuracy
+                if self.verbose:
+                    print(f"Label propagation accuracy on NLI-labeled documents: {accuracy:.3f}")
+
+
+            if not self.nli_overrides_kmeans:
+                # Override propagated labels with original cluster assignments
+                for doc_index in cluster_0_docs:
+                    propagated_labels[doc_index] = 0
+                for doc_index in cluster_1_docs:
+                    propagated_labels[doc_index] = 1
+                    
             # Step 7: Build TreeNode based on propagated labels
             # Documents where label == 1 go to left child, label == 0 go to right child
             left_docs = [i for i, label in enumerate(propagated_labels) if label == 1]

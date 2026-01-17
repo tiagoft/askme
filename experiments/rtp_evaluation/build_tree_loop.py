@@ -9,7 +9,7 @@ def run():
     PROJECT_NAME = "rtp-evaluation"
 
     CONFIG = toml.load(Path(__file__).parent / 'experiment_config.toml')
-    EXPERIMENT_PATH = Path(__file__).parent / 'build_trees.py'
+    EXPERIMENT_PATH = Path(__file__).parent / 'build_rtp_trees.py'
     for model, strategy, nli_strategy, dataset_name in product(CONFIG['models'], CONFIG['strategies'], CONFIG['strategies_nli'], CONFIG['dataset']):
         wandb.init(project=PROJECT_NAME, config=
         {

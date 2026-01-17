@@ -54,6 +54,7 @@ class SplitMetrics(BaseModel):
     split_entropy: float = 0.0
     medoid_selection_time_ms: float = 0.0
     n_attempts: int = 0
+    medoid_label_propagation_accuracy: float = 0.0
     
     def __add__(self, other: 'SplitMetrics') -> 'SplitMetrics':
         """Add two SplitMetrics objects together to aggregate metrics.

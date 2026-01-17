@@ -29,10 +29,13 @@ def chunk_text(
     ascii_text = ' '.join(ascii_text.split())
     ascii_text = re.sub(r'\S{15,}', '', ascii_text)
     ascii_text = re.sub(r'--+', '', ascii_text)
+    ascii_text = re.sub(r'cut\s+here[.]+end\s+cut\s+here', '', ascii_text)
     
     words = ascii_text.split()
     words = [word for word in words if re.fullmatch(r'[a-zA-Z0-9]+', word) and len(word) < 10]
     if len(words) <= chunk_size:
+        if len(ascii_text) > max_characters:
+            return [ascii_text[:max_characters]]
         return [ascii_text]
 
     chunks = []
@@ -219,21 +222,21 @@ class NLIWithChunkingAndPooling:
                     padding=True,
                     truncation="only_first",
                     max_length=512,
-                    return_overflowing_tokens=True,
+                    return_overflowing_tokens=False,
                 ).to(self.device)
             except ValueError as e:
                 print(f"Error tokenizing chunks: {e}")
                 print(data['chunks'])
                 print(hypothesis)
 
-            if inputs.overflowing_tokens is not None and inputs.overflowing_tokens.any():
-                print("\nSome chunks were truncated! Overflowing token counts per example:")
-                overflow_counts = inputs.overflowing_tokens.sum(dim=1).tolist()
+            # if inputs.overflowing_tokens is not None and inputs.overflowing_tokens.any():
+            #     print("\nSome chunks were truncated! Overflowing token counts per example:")
+            #     overflow_counts = inputs.overflowing_tokens.sum(dim=1).tolist()
                 
-                for i, count in enumerate(overflow_counts):
-                    if count > 0:
-                        text_preview = self.tokenizer.decode(inputs.input_ids[i], skip_special_tokens=True)
-                        print(f"  Chunk {i:2d} → {count:3d} tokens overflowed | Text: {text_preview}")
+            #     for i, count in enumerate(overflow_counts):
+            #         if count > 0:
+            #             text_preview = self.tokenizer.decode(inputs.input_ids[i], skip_special_tokens=True)
+            #             print(f"  Chunk {i:2d} → {count:3d} tokens overflowed | Text: {text_preview}")
             model_inputs = {
                 k: v for k, v in inputs.items()
                 if k not in ['overflowing_tokens', 'num_truncated_tokens', 'overflow_to_sample_mapping']

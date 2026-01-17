@@ -13,7 +13,7 @@ def make_ollama_model(model_name = 'llama3.1:8b') -> OpenAIChatModel:
 
 def make_nli_model(model_name = 'MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7') -> tuple[any, any]:
     model = AutoModelForSequenceClassification.from_pretrained(model_name)
-    tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=False)
+    tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
     return model, tokenizer
 
 def make_nli_pipeline(model_name = 'MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7',
