@@ -398,8 +398,10 @@ class F1Score(SupervisedMetric):
     
     Each document is assigned the majority class of the node it belongs to.
     """
+    def __init__(self, average: str = 'weighted'):
+        self.average = average
     
-    def __call__(self, root: TreeNode, labels: List[int], use_leaves_only: bool = True, average: str = 'weighted', **kwargs) -> float:
+    def __call__(self, root: TreeNode, labels: List[int], use_leaves_only: bool = True, **kwargs) -> float:
         """
         Calculate F1-score for the tree.
         
@@ -413,7 +415,7 @@ class F1Score(SupervisedMetric):
         Returns:
             F1-score (higher is better)
         """
-        return _f1_score(root, labels, use_leaves_only, average)
+        return _f1_score(root, labels, use_leaves_only, self.average)
 
 
 def _confusion_matrix(root: TreeNode, labels: List[int], use_leaves_only: bool = True) -> np.ndarray:

@@ -9,7 +9,7 @@ from tqdm import tqdm
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 from askme.rtp.tree_models import TreeNode
-from askme.rtp.unsupervised_metrics import (
+from askme.rtp.metrics.unsupervised_metrics import (
     UnsupervisedMetric,
     NumberOfNodes,
     TreeHeight,
@@ -19,7 +19,7 @@ from askme.rtp.unsupervised_metrics import (
     TreeDocumentUnbalance,
 )
 
-from askme.rtp.supervised_metrics import (
+from askme.rtp.metrics.supervised_metrics import (
     SupervisedMetric,
     NormalizedMutualInformation,
     AdjustedRandIndex,
@@ -91,8 +91,8 @@ def evaluate(filename : str, dataset: DatasetLoader) -> pd.DataFrame:
         #TreeHeight(),
         #NumberOfLeafNodes(),
         TreeNodeUnbalance(),
-        DocumentsPerLeaf(pool_fn=_pooling_fn),
-        TreeDocumentUnbalance(),
+        #DocumentsPerLeaf(pool_fn=_pooling_fn),
+        #TreeDocumentUnbalance(),
     ]
     
     if dataset is not None:
@@ -104,7 +104,7 @@ def evaluate(filename : str, dataset: DatasetLoader) -> pd.DataFrame:
         AdjustedRandIndex(),
         HomogeneityCompletenessVMeasure(),
         Accuracy(),
-        F1Score(),
+        F1Score(average='macro'),
         #ConfusionMatrix(),
     ]
     
