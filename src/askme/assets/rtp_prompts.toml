@@ -24,7 +24,7 @@ Use higher-level abstraction instead of using topic words that exist on the text
 system_prompt = """
 You are a senior taxonomist.
 You will be given two collections of texts. Generate a concise taxonomic hypothesis
-that is true for one of the collections of the texts, and is false for the other collection. The hypothesis
+that is true for collection A, and is false for collection B. The hypothesis
 must me a single assertion that can be evaluated as true or false and refers to a single text.
 
 Observe the following rules:

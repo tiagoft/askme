@@ -53,7 +53,7 @@ def run_kmeans_evaluation(
         max_retries=10,
         min_split_ratio=0.1,
         max_split_ratio=0.9,
-        nli_batch_size=2,
+        nli_batch_size=1,
         chunk_size=150,
         overlap=50,
         alpha=1e-2,
@@ -154,7 +154,7 @@ def main(model,
     json_string = kmeans_tree.model_dump_json()
     dataset_tag = dataset_name.replace('/', '_')
     
-    if nli_overrides_kmeans:
+    if nli_overrides_kmeans == True:
         filename_suffix = "nli-overrides"
     else:
         filename_suffix = "kmeans-only"

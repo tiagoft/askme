@@ -165,7 +165,8 @@ class NLIWithChunkingAndPooling:
                  overlap: int = 50,
                  device: str = 'cuda:0',
                  chunk_fn: callable = chunk_text,
-                 label_names=["entailment", "neutral", "contradiction"]):
+                 label_names=["entailment", "neutral", "contradiction"],
+                 disable_tqdm: bool = False):
         self.nli_model = nli_model
         self.tokenizer = tokenizer
         self.chunk_size = chunk_size
@@ -175,6 +176,7 @@ class NLIWithChunkingAndPooling:
         self.chunk_fn = chunk_fn
         self.batch_size = batch_size
         self.max_characters = max_characters
+        self.disable_tqdm = disable_tqdm
         
     def __call__(
         self,
@@ -212,7 +214,7 @@ class NLIWithChunkingAndPooling:
         )
         
         all_results = []
-        for data in tqdm(loader):
+        for data in tqdm(loader, disable=self.disable_tqdm):
             # Prepare inputs for NLI model
             try:
                 inputs = self.tokenizer(

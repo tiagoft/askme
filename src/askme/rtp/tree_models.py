@@ -9,6 +9,10 @@ class TreeNode(BaseModel):
     question: Optional[str] = None  # Question used to split this node
     metrics: Optional['SplitMetrics'] = None  # Metrics for this node's split
     blacklist: Optional[list[str]] = None  # Blacklisted questions for this node
+    
+    def is_leaf(self) -> bool:  
+        """Check if the node is a leaf node (no children)."""
+        return self.left is None and self.right is None
 
 class TokenUsage(BaseModel):
     total_tokens: int = 0
@@ -83,3 +87,13 @@ class SplitMetrics(BaseModel):
         
 
 TreeNode.model_rebuild()
+
+class TreeDecision(BaseModel):
+    """Class representing a decision made at a node during RTP tree inference."""
+    
+    hypothesis: str        # The hypothesis where the decision was made
+    decision: str          # The decision made ("entailment" or "contradiction")
+
+class TreePath(BaseModel):
+    """Class representing the path taken through an RTP tree during inference."""
+    decisions: list[TreeDecision]   # List of decisions made at each node ("entailment" or "contradiction")

@@ -1,5 +1,5 @@
 models = [
-"gpt-oss:20b",
+#"gpt-oss:20b",
 #"qwen3:8b",
 "qwen3:14b",
 #"llama3.1:8b",
@@ -19,5 +19,5 @@ strategies_nli = [
 
 dataset = [
     "SetFit/20_newsgroups",
-#    "fancyzhx/ag_news",
+    "fancyzhx/ag_news",
 ]

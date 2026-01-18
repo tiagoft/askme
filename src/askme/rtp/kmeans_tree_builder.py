@@ -546,17 +546,14 @@ class KMeansTreeBuilder:
                     print(f"Label propagation accuracy on NLI-labeled documents: {accuracy:.3f}")
 
 
-            if not self.nli_overrides_kmeans:
+            if self.nli_overrides_kmeans == True:
                 # Override propagated labels with original cluster assignments
-                for doc_index in cluster_0_docs:
-                    propagated_labels[doc_index] = 0
-                for doc_index in cluster_1_docs:
-                    propagated_labels[doc_index] = 1
-                    
-            # Step 7: Build TreeNode based on propagated labels
-            # Documents where label == 1 go to left child, label == 0 go to right child
-            left_docs = [i for i, label in enumerate(propagated_labels) if label == 1]
-            right_docs = [i for i, label in enumerate(propagated_labels) if label == 0]
+
+                left_docs = [i for i, label in enumerate(propagated_labels) if label == 1]
+                right_docs = [i for i, label in enumerate(propagated_labels) if label == 0]
+            else:
+                left_docs = [i for i, c in enumerate(cluster_assignments) if c == 1]
+                right_docs = [i for i, c in enumerate(cluster_assignments) if c == 0]
 
             # Check split ratio if split occurred
             split_is_valid = True
