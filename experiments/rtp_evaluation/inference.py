@@ -149,14 +149,23 @@ def load_documents_from_local(input_dir: str) -> Tuple[List[str], List[str]]:
     
     texts = []
     filenames = []
+    skipped_files = []
     
     for txt_file in tqdm(txt_files, desc="Loading documents"):
-        with open(txt_file, 'r', encoding='utf-8') as f:
-            text = f.read().strip()
-            if text:  # Skip empty files
-                texts.append(text)
-                filenames.append(txt_file.name)
+        try:
+            with open(txt_file, 'r', encoding='utf-8') as f:
+                text = f.read().strip()
+                if text:  # Skip empty files
+                    texts.append(text)
+                    filenames.append(txt_file.name)
+                else:
+                    skipped_files.append(txt_file.name)
+        except (IOError, UnicodeDecodeError) as e:
+            print(f"\nWarning: Could not read {txt_file.name}: {e}")
+            skipped_files.append(txt_file.name)
     
+    if skipped_files:
+        print(f"Warning: Skipped {len(skipped_files)} empty or unreadable file(s)")
     print(f"Loaded {len(texts)} documents from {len(txt_files)} files")
     
     return texts, filenames
@@ -241,7 +250,7 @@ def print_inference_results(
     print("SUMMARY")
     print("="*80)
     
-    # Count unique leaves
+    # Count unique leaves (using id() is safe here as we're only comparing within this session)
     unique_leaves = set(id(leaf) for leaf in results)
     print(f"Total documents processed: {len(documents)}")
     print(f"Unique leaf nodes reached: {len(unique_leaves)}")
@@ -249,7 +258,7 @@ def print_inference_results(
     # Show distribution of documents per leaf
     leaf_counts = {}
     for leaf in results:
-        leaf_id = id(leaf)
+        leaf_id = id(leaf)  # Using id() to group documents by the same leaf instance
         leaf_counts[leaf_id] = leaf_counts.get(leaf_id, 0) + 1
     
     print(f"\nDocuments per leaf distribution:")
