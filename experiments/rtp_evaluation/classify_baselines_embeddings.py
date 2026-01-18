@@ -187,7 +187,7 @@ def run_test(embeddings, labels):
 
 if __name__ == "__main__":
     dataset_name = 'fancyzhx/ag_news'
-    dataset_name = 'SetFit/20_newsgroups'
+    #dataset_name = 'SetFit/20_newsgroups'
     embeddings, labels = get_embeddings_with_chunker(
         dataset_name=dataset_name,
         embedding_model_name='sentence-transformers/paraphrase-albert-small-v2',
