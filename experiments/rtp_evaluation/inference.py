@@ -90,6 +90,7 @@ def load_documents_from_huggingface(
     # Extract texts and labels
     texts = []
     labels = []
+    skipped_count = 0
     for idx in tqdm(indices, desc="Loading documents"):
         item = dataset[int(idx)]
         # Handle different dataset formats
@@ -104,6 +105,7 @@ def load_documents_from_huggingface(
             text = ' '.join(filter(None, [item.get('title', ''), item.get('description', '')]))
             text = text.strip()
             if not text:  # If still empty, skip this item
+                skipped_count += 1
                 continue
         
         texts.append(text)
@@ -114,6 +116,8 @@ def load_documents_from_huggingface(
         else:
             labels.append(-1)  # No label available
     
+    if skipped_count > 0:
+        print(f"Warning: Skipped {skipped_count} empty document(s)")
     print(f"Loaded {len(texts)} documents")
     if any(label != -1 for label in labels):
         valid_labels = [l for l in labels if l != -1]
