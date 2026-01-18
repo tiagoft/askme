@@ -46,7 +46,7 @@ def load_tree(tree_path: str) -> TreeNode:
     elif tree_path.endswith('.json'):
         with open(tree_path, 'r') as f:
             json_data = json.load(f)
-            tree = TreeNode.model_validate_json(json.dumps(json_data))
+            tree = TreeNode.model_validate(json_data)
     else:
         raise ValueError("Tree file must be .pkl or .json format")
     
@@ -101,8 +101,10 @@ def load_documents_from_huggingface(
             text = item['document']
         else:
             # Try to combine title and text if available
-            text = item.get('title', '') + ' ' + item.get('description', '')
+            text = ' '.join(filter(None, [item.get('title', ''), item.get('description', '')]))
             text = text.strip()
+            if not text:  # If still empty, skip this item
+                continue
         
         texts.append(text)
         
@@ -114,7 +116,9 @@ def load_documents_from_huggingface(
     
     print(f"Loaded {len(texts)} documents")
     if any(label != -1 for label in labels):
-        print(f"Label distribution: {np.bincount([l for l in labels if l != -1])}")
+        valid_labels = [l for l in labels if l != -1]
+        if valid_labels:
+            print(f"Label distribution: {np.bincount(valid_labels)}")
     
     return texts, labels
 
