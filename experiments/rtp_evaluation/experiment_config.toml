@@ -1,14 +1,14 @@
 models = [
-#"gpt-oss:20b",
+"gpt-oss:20b",
 #"qwen3:8b",
-"qwen3:14b",
+#"qwen3:14b",
 #"llama3.1:8b",
 #"llama3.2:3b",
 ]
 
 strategies = [
 #"random",
-"kmeans",
+#"kmeans",
 "votek",
 ]
 
