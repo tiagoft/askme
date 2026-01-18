@@ -100,3 +100,122 @@ These can be modified in the script as needed for different experiments.
 - The script requires API access for LLM calls (configured via pydantic-ai)
 - Execution time depends on the LLM API response times and NLI model inference
 - GPU acceleration is available but not required (set `use_gpu=True` for RTPBuilder and `device="cuda"` for HDBSCAN)
+
+## inference.py
+
+A script for running inference on documents using a pre-built RTP tree. This script iterates through a list of documents and classifies each one by traversing the tree using Natural Language Inference (NLI).
+
+### Overview
+
+The script provides functionality to:
+
+1. **Load a pre-built RTP tree**: Supports both `.pkl` (pickle) and `.json` formats
+2. **Load documents from multiple sources**:
+   - HuggingFace datasets (any text dataset)
+   - Local `.txt` files from a directory
+3. **Run inference**: Uses the `query` function to classify each document into a leaf node
+4. **Display results**: Shows which leaf each document was classified to and summary statistics
+
+### Usage
+
+#### Using HuggingFace Datasets
+
+```bash
+# Run inference on 100 samples from AG News
+python experiments/rtp_evaluation/inference.py \
+    --tree path/to/tree.pkl \
+    --source huggingface \
+    --dataset fancyzhx/ag_news \
+    --split test \
+    --n_samples 100
+
+# Run on all documents in a dataset
+python experiments/rtp_evaluation/inference.py \
+    --tree path/to/tree.pkl \
+    --source huggingface \
+    --dataset fancyzhx/ag_news
+```
+
+#### Using Local Text Files
+
+```bash
+# Run inference on .txt files in a directory
+python experiments/rtp_evaluation/inference.py \
+    --tree path/to/tree.pkl \
+    --source local \
+    --input_dir ./documents
+```
+
+### Arguments
+
+**Required Arguments:**
+- `--tree`: Path to the pre-built tree file (`.pkl` or `.json`)
+- `--source`: Source of documents (`huggingface` or `local`)
+
+**HuggingFace-specific Arguments:**
+- `--dataset`: HuggingFace dataset name (required if `source=huggingface`)
+- `--split`: Dataset split to use (default: `test`)
+- `--n_samples`: Number of samples to load (default: all documents)
+- `--seed`: Random seed for sampling (default: `42`)
+
+**Local File Arguments:**
+- `--input_dir`: Directory containing `.txt` files (required if `source=local`)
+
+**Inference Parameters:**
+- `--device`: Device to run inference on (`cpu` or `cuda`, default: `cpu`)
+- `--chunk_size`: Size of text chunks for NLI processing in words (default: `200`)
+- `--overlap`: Overlap between chunks in words (default: `20`)
+
+### Output
+
+The script outputs:
+
+1. **Per-document results**: Shows each document's text (truncated), the leaf it was classified to, and the number of documents in that leaf
+2. **Summary statistics**: 
+   - Total documents processed
+   - Number of unique leaf nodes reached
+   - Distribution of documents across leaves
+
+### Example Output
+
+```
+INFERENCE RESULTS
+================================================================================
+
+Document 1 (ID: 0):
+  Text: Wall St. Bears Claw Back Into the Black (Reuters) Reuters - Short-sellers, Wall...
+  Classified to leaf with 23 documents
+  Leaf question: Is this about business or finance?
+
+Document 2 (ID: 1):
+  Text: Carlyle Looks Toward Commercial Aerospace (Reuters) Reuters - Private investment...
+  Classified to leaf with 23 documents
+  Leaf question: Is this about business or finance?
+
+================================================================================
+SUMMARY
+================================================================================
+Total documents processed: 100
+Unique leaf nodes reached: 8
+
+Documents per leaf distribution:
+  Leaf 140234567890123: 23 document(s)
+  Leaf 140234567890456: 18 document(s)
+  ...
+```
+
+### Requirements
+
+- A pre-built RTP tree (can be created using `build_rtp_trees.py` or similar scripts)
+- Dependencies from `pyproject.toml`:
+  - `datasets>=2.0.0` (for HuggingFace datasets)
+  - `transformers>=4.57.3` (for NLI models)
+  - `torch>=2.9.1` (deep learning framework)
+  - `numpy`, `tqdm`
+
+### Notes
+
+- The script uses the `query` function from `askme.rtp.query` module
+- NLI model (`microsoft/deberta-v2-xlarge-mnli` by default) is used for answering questions at each tree node
+- Inference time depends on document length, tree depth, and whether GPU acceleration is used
+- For large datasets, consider using GPU acceleration with `--device cuda`
