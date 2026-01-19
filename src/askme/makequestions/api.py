@@ -4,6 +4,8 @@ from pydantic_ai.models.openai import OpenAIChatModel, OpenAIChatModelSettings
 from dotenv import load_dotenv
 from pydantic_ai.providers.azure import AzureProvider
 from pydantic_ai.providers.ollama import OllamaProvider
+from pydantic_ai.providers.google import GoogleProvider
+from pydantic_ai.models.google import GoogleModel
 
 def make_azure_model(model_name : str = "gpt-4o-mini") -> Model:
     load_dotenv()
@@ -20,6 +22,16 @@ def make_azure_model(model_name : str = "gpt-4o-mini") -> Model:
         settings=OpenAIChatModelSettings(
             temperature=0.1,
         )
+    )
+
+def make_gemini_model(model_name: str = "gemini-2.5-flash-lite") -> Model:
+    load_dotenv()
+    api_key = os.getenv("GEMINI_API_KEY")
+    return GoogleModel(
+        model_name=model_name,
+        provider=GoogleProvider(
+            api_key=api_key,
+        ),
     )
 
 def make_ollama_model(model_name = 'gpt-oss:20b') -> Model:

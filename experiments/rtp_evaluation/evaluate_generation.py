@@ -8,7 +8,7 @@ class HelloWorldResponse(BaseModel):
 
 
 def generate():
-    model = api.make_ollama_model('qwen3:14b')
+    model = api.make_gemini_model('gemma-3-27b')
     prompt = "Respond with 'Hello, World!'"
     agent = Agent(
         model=model,

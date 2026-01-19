@@ -4,6 +4,7 @@ import pandas as pd
 import sys
 import json
 import numpy as np
+import pydantic_ai
 from tqdm import tqdm
 from pathlib import Path
 from load_dataset import load_dataset_sample
@@ -27,20 +28,29 @@ def generate_document_from_path(path: TreePath) -> str:
     """Generate a document string that encodes the decisions in the TreePath."""
     doc_lines = []
     for decision in path.decisions:
-        line = f"Hypothesis: {decision.hypothesis} | Decision: {decision.decision}"
+        ans = "Yes" if decision.decision == "entailment" else "No"
+        line = f"Question: {decision.hypothesis}? Answer: {ans}"
         doc_lines.append(line)
     path_string = "\n".join(doc_lines)
 
+    #model = api.make_gemini_model('gemini-2.5-flash-lite')
     model = api.make_ollama_model('qwen3:14b')
-    prompt = f"""Generate a text with any subject. If the text is used as a premise, then the following hypotheses should be evaluated as:\n{path_string}"""
+    prompt = f"""You are a skillful writer.
+    You are writing under the following context:
+    This is a newspaper article with one or two paragraphs.
+    Ensure the material is coherent and relevant to the questions asked.
+    You will be asked to generate material based on questions and answers.
+    The first question and answer is very important, so ensure the generated material reflects it well."""
+
+    print(prompt)
 
     agent = Agent(
         model=model,
         output_type=TextResponse,
         instructions=prompt,
     )
-    result = agent.run_sync("")
-    return result.output.text
+    result = agent.run_sync(f"{path_string}")
+    return result.output.text, result.usage().total_tokens
 
 
 def read_input_arguments():
@@ -238,22 +248,35 @@ def main():
 
     elif mode == "gen_path":
         rng = np.random.default_rng()
-        all_equal, all_levels = [], []
+        all_equal, all_levels, all_nlevels = [], [], []
         for _ in range(n_generations):
-            
+         
             random_path = get_random_path(tree, rng)
-            document = generate_document_from_path(random_path)
+            try:
+                print("Generating document from path...")
+                document, tokens = generate_document_from_path(random_path)
+                print(f"Generated document with {tokens} tokens.")
+            except pydantic_ai.exceptions.ModelHTTPError:
+                print("Hit my quota. Wait...")
+                time.sleep(60)
+                document, tokens = generate_document_from_path(random_path)
+            
+            print(document)
+            print(random_path)
+                
             predicted_node, predicted_path, predicted_label = inference_model(document)
             equal, levels = paths_are_equal(random_path, predicted_path)
             print(
                 f"Generated Path vs Predicted Path Equal: {equal}, Equal Levels: {levels} ({100*levels/len(random_path.decisions):.2f}%)"
             )
+            all_nlevels.append(len(random_path.decisions))
             all_equal.append(equal)
             all_levels.append(levels)
         # save all_equal, all_levels to a json file
         results = {
             "all_equal": all_equal,
             "all_levels": all_levels,
+            "all_nlevels": all_nlevels,
         }
         json_filename = Path(tree_filename).with_suffix('.gen_path.json')
         with open(json_filename, 'w') as f:
