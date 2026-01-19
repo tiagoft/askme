@@ -26,7 +26,7 @@ def paths_are_equal(path1: TreePath, path2: TreePath) -> tuple[bool, int]:
         equal_levels += 1
     return True, equal_levels
 
-def get_random_path(tree_root: TreeNode, rng: np.random.Generator) -> TreePath:
+def get_random_path(tree_root: TreeNode, rng: np.random.Generator, return_random_docs: int | bool = False) -> TreePath:
     """Generate a random path from the root to a leaf in the RTP tree."""
     current_node = tree_root
     path = TreePath(decisions=[])
@@ -43,6 +43,12 @@ def get_random_path(tree_root: TreeNode, rng: np.random.Generator) -> TreePath:
         else:
             current_node = current_node.right
             path.decisions.append(TreeDecision(hypothesis=question, decision="contradiction"))
+    
+    if isinstance(return_random_docs, int) and return_random_docs > 0 and current_node is not None:
+        # Sample random documents from the leaf node
+        sampled_docs = rng.choice(current_node.documents, size=min(return_random_docs, len(current_node.documents)), replace=False)
+        sampled_docs = list(sampled_docs)
+        return path, sampled_docs
     
     if current_node is None:
         raise ValueError("Reached a non-existent node in the tree.")

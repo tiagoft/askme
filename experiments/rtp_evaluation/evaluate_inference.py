@@ -7,12 +7,41 @@ import numpy as np
 from tqdm import tqdm
 from pathlib import Path
 from load_dataset import load_dataset_sample
-from askme.rtp.tree_models import TreeNode
+from askme.rtp.tree_models import TreeNode, TreePath
 from askme.rtp.inference import TreeInference
-from askme.rtp.generation import dict_to_path, paths_are_equal
+from askme.rtp.generation import dict_to_path, paths_are_equal, get_random_path
 from askme.askquestions.models import make_nli_model
 from tqdm import tqdm
 from joblib import Parallel, delayed
+import askme.makequestions.api as api
+import time
+from pydantic import BaseModel
+from pydantic_ai import Agent
+
+
+class TextResponse(BaseModel):
+    text: str
+
+
+def generate_document_from_path(path: TreePath) -> str:
+    """Generate a document string that encodes the decisions in the TreePath."""
+    doc_lines = []
+    for decision in path.decisions:
+        line = f"Hypothesis: {decision.hypothesis} | Decision: {decision.decision}"
+        doc_lines.append(line)
+    path_string = "\n".join(doc_lines)
+
+    model = api.make_ollama_model('qwen3:14b')
+    prompt = f"""Generate a text with any subject. If the text is used as a premise, then the following hypotheses should be evaluated as:\n{path_string}"""
+
+    agent = Agent(
+        model=model,
+        output_type=TextResponse,
+        instructions=prompt,
+    )
+    result = agent.run_sync("")
+    return result.output.text
+
 
 def read_input_arguments():
     import argparse
@@ -60,6 +89,25 @@ def read_input_arguments():
         help=
         "Name of the NLI model to use (default: MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7)"
     )
+
+    parser.add_argument(
+        "--mode",
+        type=str,
+        required=False,
+        default="test",
+        help=
+        "Mode of operation (default: test), can be test, gen_path or gen_naive"
+    )
+
+    parser.add_argument(
+        "--n_generations",
+        type=int,
+        required=False,
+        default=30,
+        help=
+        "Number of generations to use for gen_path or gen_naive modes (default: 30)"
+    )
+
     parser.add_argument(
         "--use_cuda",
         action="store_true",
@@ -125,9 +173,15 @@ def main():
     split_gt = args.split_gt
     model_name = args.nli_model_name
     use_cuda = args.use_cuda
+    mode = args.mode
+    if mode not in ["test", "gen_path", "gen_naive"]:
+        raise ValueError(
+            f"Invalid mode: {mode}. Must be one of 'test', 'gen_path', or 'gen_naive'."
+        )
+    n_generations = args.n_generations
 
     csv_filename = Path(tree_filename).with_suffix('.csv')
-    if csv_filename.exists():
+    if mode=='test' and csv_filename.exists():
         print(f"CSV file {csv_filename} already exists. Skipping evaluation.")
         return
 
@@ -141,49 +195,69 @@ def main():
         model_name,
         use_cuda,
     )
-    def infer_one(document, true_label):
-        predicted_node, predicted_path, predicted_label = inference_model(document)
-        return predicted_label
 
-    predicted_labels = []
-    for text in tqdm(
-            zip(text_eval, labels_eval),
-            desc="Evaluating samples",
-            total=len(text_eval),
-    ):
-        document, true_label = text
-        predicted_node, predicted_path, predicted_label = inference_model(
-            document)
-        predicted_labels.append(predicted_label)
+    if mode == "test":
+        predicted_labels = []
+        for text in tqdm(
+                zip(text_eval, labels_eval),
+                desc="Evaluating samples",
+                total=len(text_eval),
+        ):
+            document, true_label = text
+            predicted_node, predicted_path, predicted_label = inference_model(
+                document)
+            predicted_labels.append(predicted_label)
 
-    # Evaluate accuracy
-    predicted_labels = np.array(predicted_labels)
-    labels_eval = np.array(labels_eval)
-    # Use sklearn to calculate accuracy
-    from sklearn.metrics import accuracy_score, f1_score, normalized_mutual_info_score, adjusted_rand_score
-    accuracy = accuracy_score(labels_eval, predicted_labels)
-    f1 = f1_score(labels_eval, predicted_labels, average='macro')
-    nmi = normalized_mutual_info_score(labels_eval, predicted_labels)
-    ari = adjusted_rand_score(labels_eval, predicted_labels)
-    # Change filename extension to .csv
-    csv_filename = Path(tree_filename).with_suffix('.csv')
-    # Save results to csv
-    df = pd.DataFrame({
-        'Tree Filename': [tree_filename],
-        'Dataset': [dataset_name],
-        'Accuracy': [accuracy],
-        'F1 (macro)': [f1],
-        'NMI': [nmi],
-        'ARI': [ari],
-    })
-    df.to_csv(csv_filename, index=False)
-    
-    print(f"Filename: {tree_filename}")
-    print(f"Accuracy: {accuracy:.4f}")
-    print(f"F1 (macro): {f1:.4f}")
-    print(f"NMI: {nmi:.4f}")
-    print(f"ARI: {ari:.4f}")
+        # Evaluate accuracy
+        predicted_labels = np.array(predicted_labels)
+        labels_eval = np.array(labels_eval)
+        # Use sklearn to calculate accuracy
+        from sklearn.metrics import accuracy_score, f1_score, normalized_mutual_info_score, adjusted_rand_score
+        accuracy = accuracy_score(labels_eval, predicted_labels)
+        f1 = f1_score(labels_eval, predicted_labels, average='macro')
+        nmi = normalized_mutual_info_score(labels_eval, predicted_labels)
+        ari = adjusted_rand_score(labels_eval, predicted_labels)
+        # Change filename extension to .csv
+        csv_filename = Path(tree_filename).with_suffix('.csv')
+        # Save results to csv
+        df = pd.DataFrame({
+            'Tree Filename': [tree_filename],
+            'Dataset': [dataset_name],
+            'Accuracy': [accuracy],
+            'F1 (macro)': [f1],
+            'NMI': [nmi],
+            'ARI': [ari],
+        })
+        df.to_csv(csv_filename, index=False)
 
+        print(f"Filename: {tree_filename}")
+        print(f"Accuracy: {accuracy:.4f}")
+        print(f"F1 (macro): {f1:.4f}")
+        print(f"NMI: {nmi:.4f}")
+        print(f"ARI: {ari:.4f}")
+
+    elif mode == "gen_path":
+        rng = np.random.default_rng()
+        all_equal, all_levels = [], []
+        for _ in range(n_generations):
+            
+            random_path = get_random_path(tree, rng)
+            document = generate_document_from_path(random_path)
+            predicted_node, predicted_path, predicted_label = inference_model(document)
+            equal, levels = paths_are_equal(random_path, predicted_path)
+            print(
+                f"Generated Path vs Predicted Path Equal: {equal}, Equal Levels: {levels} ({100*levels/len(random_path.decisions):.2f}%)"
+            )
+            all_equal.append(equal)
+            all_levels.append(levels)
+        # save all_equal, all_levels to a json file
+        results = {
+            "all_equal": all_equal,
+            "all_levels": all_levels,
+        }
+        json_filename = Path(tree_filename).with_suffix('.gen_path.json')
+        with open(json_filename, 'w') as f:
+            json.dump(results, f, indent=4)
 
 if __name__ == "__main__":
     main()
