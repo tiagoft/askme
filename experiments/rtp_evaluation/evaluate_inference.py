@@ -24,7 +24,26 @@ class TextResponse(BaseModel):
     text: str
 
 
-def generate_document_from_path(path: TreePath) -> str:
+def generate_document_from_examples(examples: list[str], category: str="a news article") -> str:
+    model = api.make_ollama_model('qwen3:14b')
+    prompt = f"""You are a skillful writer.
+    You are writing under the following context:
+    This is {category} with one or two paragraphs.
+    Ensure the material is coherent and relevant, and follow similar human intents as those in the examples.
+    Do not copy or paraphrase the examples, but use them as inspiration for style and content."""
+
+
+    agent = Agent(
+        model=model,
+        output_type=TextResponse,
+        instructions=prompt,
+        retries=10,
+    )
+    result = agent.run_sync(f"{examples}")
+    return result.output.text, result.usage().total_tokens
+
+
+def generate_document_from_path(path: TreePath, category: str="a news article") -> str:
     """Generate a document string that encodes the decisions in the TreePath."""
     doc_lines = []
     for decision in path.decisions:
@@ -37,7 +56,7 @@ def generate_document_from_path(path: TreePath) -> str:
     model = api.make_ollama_model('qwen3:14b')
     prompt = f"""You are a skillful writer.
     You are writing under the following context:
-    This is a newspaper article with one or two paragraphs.
+    This is {category} with one or two paragraphs.
     Ensure the material is coherent and relevant to the questions asked.
     You will be asked to generate material based on questions and answers.
     The first question and answer is very important, so ensure the generated material reflects it well."""
@@ -52,6 +71,24 @@ def generate_document_from_path(path: TreePath) -> str:
     result = agent.run_sync(f"{path_string}")
     return result.output.text, result.usage().total_tokens
 
+text_types = {
+    'agnews': "a news article",
+    'wikipedia': "an informative text",
+    'bills': "the summary of a government bill",
+    'newsgroups': "a discussion forum post",
+}
+
+def get_dataset_from_filename(filename: str) -> str:
+    if "ag_news" in filename:
+        return "agnews"
+    elif "wikipedia" in filename:
+        return "wikipedia"
+    elif "bills" in filename:
+        return "bills"
+    elif "20_newsgroups" in filename:
+        return "newsgroups"
+    else:
+        raise ValueError(f"Unknown dataset in filename: {filename}")
 
 def read_input_arguments():
     import argparse
@@ -125,9 +162,16 @@ def read_input_arguments():
     return parser.parse_args()
 
 
-def load_assets(tree_filename: str, dataset_name: str,
-                n_samples_gt: int | None, split_gt: str, n_samples: int | None,
-                split: str, model_name: str, use_cuda: bool):
+def load_assets(
+    tree_filename: str,
+    dataset_name: str,
+    n_samples_gt: int | None,
+    split_gt: str,
+    n_samples: int | None,
+    split: str,
+    model_name: str,
+    use_cuda: bool,
+):
     # Read the RTP tree from the JSON file
     #print("Reading tree...")
     with open(tree_filename, 'r') as f:
@@ -191,7 +235,7 @@ def main():
     n_generations = args.n_generations
 
     csv_filename = Path(tree_filename).with_suffix('.csv')
-    if mode=='test' and csv_filename.exists():
+    if mode == 'test' and csv_filename.exists():
         print(f"CSV file {csv_filename} already exists. Skipping evaluation.")
         return
 
@@ -249,22 +293,74 @@ def main():
     elif mode == "gen_path":
         rng = np.random.default_rng()
         all_equal, all_levels, all_nlevels = [], [], []
+        dataset = get_dataset_from_filename(tree_filename)
+        text_type = text_types[dataset]
         for _ in range(n_generations):
-         
+
             random_path = get_random_path(tree, rng)
             try:
                 print("Generating document from path...")
-                document, tokens = generate_document_from_path(random_path)
+                document, tokens = generate_document_from_path(random_path, category=text_type)
                 print(f"Generated document with {tokens} tokens.")
             except pydantic_ai.exceptions.ModelHTTPError:
                 print("Hit my quota. Wait...")
                 time.sleep(60)
-                document, tokens = generate_document_from_path(random_path)
-            
+                document, tokens = generate_document_from_path(random_path, category=text_type)
+
             print(document)
             print(random_path)
-                
-            predicted_node, predicted_path, predicted_label = inference_model(document)
+
+            predicted_node, predicted_path, predicted_label = inference_model(
+                document)
+            equal, levels = paths_are_equal(random_path, predicted_path)
+            print(
+                f"Generated Path vs Predicted Path Equal: {equal}, Equal Levels: {levels} ({100*levels/len(random_path.decisions):.2f}%)"
+            )
+            all_nlevels.append(len(random_path.decisions))
+            all_equal.append(equal)
+            all_levels.append(levels)
+        # save all_equal, all_levels to a json file
+
+        results = {
+            "all_equal": all_equal,
+            "all_levels": all_levels,
+            "all_nlevels": all_nlevels,
+        }
+        json_filename = Path(tree_filename).with_suffix('.gen_path.json')
+        with open(json_filename, 'w') as f:
+            json.dump(results, f, indent=4)
+
+    elif mode == "gen_naive":
+        text_gt, labels_gt = load_dataset_sample(
+            n_samples=n_samples_gt,
+            seed=42,
+            dataset_name=dataset_name,
+            split=split_gt,
+        )
+
+        # Get a tree path and retrieve 5 random documents from the dataset that match the path
+        rng = np.random.default_rng()
+        all_equal, all_levels, all_nlevels = [], [], []
+        for _ in range(n_generations):
+            dataset = get_dataset_from_filename(tree_filename)
+            text_type = text_types[dataset]
+            random_path, docs = get_random_path(tree, rng, return_random_docs=5)
+            texts = [' '.join(text_gt[i].split()[:350]) for i in docs]
+            # Find all documents that match the path
+            try:
+                print("Generating document from path...")
+                document, tokens = generate_document_from_examples(texts, text_type)
+                print(f"Generated document with {tokens} tokens.")
+            except pydantic_ai.exceptions.ModelHTTPError:
+                print("Hit my quota. Wait...")
+                time.sleep(60)
+                document, tokens = generate_document_from_examples(texts, text_type)
+
+            print(document)
+            print(random_path)
+
+            predicted_node, predicted_path, predicted_label = inference_model(
+                document)
             equal, levels = paths_are_equal(random_path, predicted_path)
             print(
                 f"Generated Path vs Predicted Path Equal: {equal}, Equal Levels: {levels} ({100*levels/len(random_path.decisions):.2f}%)"
@@ -278,9 +374,10 @@ def main():
             "all_levels": all_levels,
             "all_nlevels": all_nlevels,
         }
-        json_filename = Path(tree_filename).with_suffix('.gen_path.json')
+        json_filename = Path(tree_filename).with_suffix('.gen_naive.json')
         with open(json_filename, 'w') as f:
             json.dump(results, f, indent=4)
+
 
 if __name__ == "__main__":
     main()

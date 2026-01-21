@@ -175,6 +175,7 @@ class NLIWithChunkingAndPooling:
         self.label_names = label_names
         self.chunk_fn = chunk_fn
         self.batch_size = batch_size
+        self.max_chunks_per_minibatch = 64
         self.max_characters = max_characters
         self.disable_tqdm = disable_tqdm
         
@@ -249,9 +250,26 @@ class NLIWithChunkingAndPooling:
             # print(f"Text chunks: {data['chunks'][:2]} ...")
             # print(f"Overflowing chunks: {data['chunks'][-2:]} ...")
             
-            with torch.no_grad():
-                outputs = self.nli_model(**inputs, **kwargs)
-                logits = outputs.logits
+            # Iterate on inputs in smaller minibatches if too large
+            if len(data['chunks']) > self.max_chunks_per_minibatch:
+                logits_list = []
+                for start_idx in range(0, len(data['chunks']), self.max_chunks_per_minibatch):
+                    end_idx = start_idx + self.max_chunks_per_minibatch
+                    minibatch_inputs = {
+                        k: v[start_idx:end_idx]
+                        for k, v in inputs.items()
+                    }
+                    with torch.no_grad():
+                        outputs = self.nli_model(**minibatch_inputs, **kwargs)
+                        logits = outputs.logits
+                        logits_list.append(logits)
+                    del minibatch_inputs # free memory
+                    torch.cuda.empty_cache()
+                logits = torch.cat(logits_list, dim=0)
+            else:
+                with torch.no_grad():
+                    outputs = self.nli_model(**inputs, **kwargs)
+                    logits = outputs.logits
             
             del inputs # free memory
             torch.cuda.empty_cache()

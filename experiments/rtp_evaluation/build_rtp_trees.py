@@ -20,7 +20,7 @@ def run_rtp_evaluation(
     labels: List[int],
     llm_model_name: str = 'qwen3:14b',
     n_documents_to_answer: int | float = 0.1,
-    max_depth: int = 4,
+    max_depth: int = 6,
     selection_strategy: str = 'kmeans',
     nli_selection_strategy: str = 'kmeans',
 ):
@@ -45,7 +45,7 @@ def run_rtp_evaluation(
         max_retries=10,
         min_split_ratio=0.1,
         max_split_ratio=0.9,
-        nli_batch_size=4,
+        nli_batch_size=32,
         chunk_size=150,
         overlap=50,
         alpha=1e-2,

@@ -3,7 +3,7 @@ import subprocess
 from joblib import Parallel, delayed
 
 def main():
-    path_to_trees = Path(__file__).parent.parent.parent / 'trees_for_ijcnn'
+    path_to_trees = Path(__file__).parent.parent.parent / 'trees_for_ijcnn' / 'rtp_trees'
     
     # Get all json files in the directory
     tree_files = list(path_to_trees.glob('*.json'))
@@ -25,6 +25,10 @@ def main():
             dataset_name = 'fancyzhx/ag_news'
         elif 'newsgroups' in tree_file.name:
             dataset_name = 'SetFit/20_newsgroups'
+        elif 'wikipedia' in tree_file.name:
+            dataset_name = 'wikipedia'
+        elif 'bills' in tree_file.name:
+            dataset_name = 'bills'
         else:
             raise ValueError(f"Unknown dataset in filename: {tree_file}")
 

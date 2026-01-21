@@ -76,8 +76,23 @@ class DatasetLoader:
         self.texts = texts
         self.labels = labels
 
+def prune_tree_to_max_height(tree: TreeNode, max_height: int) -> TreeNode:
+    """Prune the tree to the specified maximum height."""
+    def _prune_node(node: TreeNode, curr_height: int) -> TreeNode:
+        if curr_height >= max_height:
+            node.left = None
+            node.right = None
+            return node
+        if node.is_leaf():
+            return node
+        node.left = _prune_node(node.left, curr_height + 1)
+        node.right = _prune_node(node.right, curr_height + 1)
+        return node
+    
+    new_tree = _prune_node(tree, curr_height=0)
+    return new_tree
 
-def evaluate(filename: str, dataset: DatasetLoader) -> pd.DataFrame:
+def evaluate(filename: str, dataset: DatasetLoader, max_height: int | None = None) -> pd.DataFrame:
     """Main function to run the tree evaluation."""
     with open(filename, 'rb') as f:
         if filename.endswith('.pkl'):
@@ -88,6 +103,11 @@ def evaluate(filename: str, dataset: DatasetLoader) -> pd.DataFrame:
             tree = TreeNode.model_validate_json(json.dumps(json_data))
         else:
             raise ValueError("Unsupported file format. Use .pkl or .json")
+        
+    if max_height is not None:
+        tree = prune_tree_to_max_height(tree, max_height)
+    
+
     #print(f"Loaded tree type: {type(tree)}")
     unsupervised_metrics = [
         #NumberOfNodes(),
@@ -152,6 +172,13 @@ def read_input_arguments():
         required=False,
         help="Dataset name (for supervised and self-supervised metrics)")
 
+    parser.add_argument(
+        "--max_height",
+        type=int,
+        default=None,
+        help="Maximum height of the tree to evaluate",
+    )
+
     # Parse arguments
     args = parser.parse_args()
     return args
@@ -169,7 +196,7 @@ if __name__ == "__main__":
 
     output_dfs = []
     for filename in tqdm(args.filename, desc="Evaluating files"):
-        output_df = evaluate(filename=filename, dataset=dataset)
+        output_df = evaluate(filename=filename, dataset=dataset, max_height=args.max_height)
         output_dfs.append(output_df)
     final_df = pd.concat(output_dfs, ignore_index=True)
     print(final_df.to_latex(

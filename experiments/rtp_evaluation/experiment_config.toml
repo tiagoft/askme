@@ -18,6 +18,8 @@ strategies_nli = [
 ]
 
 dataset = [
-    "SetFit/20_newsgroups",
-    "fancyzhx/ag_news",
+#    "SetFit/20_newsgroups",
+#    "fancyzhx/ag_news",
+"wikipedia",
+"bills",
 ]

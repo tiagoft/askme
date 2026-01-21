@@ -12,7 +12,7 @@ def test_build_model():
     model = api.make_azure_model()
     assert model is not None
 
-@pytest.mark.llm
+
 def test_hello_world():
     model = api.make_azure_model()
     prompt = "Respond with 'Hello, World!'"

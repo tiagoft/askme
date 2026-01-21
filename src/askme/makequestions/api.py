@@ -10,10 +10,11 @@ from pydantic_ai.models.google import GoogleModel
 def make_azure_model(model_name : str = "gpt-4o-mini") -> Model:
     load_dotenv()
     api_key = os.getenv("API_KEY")
-    endpoint = os.getenv("ENDPOINT")
+    endpoint = os.getenv("AZURE_ENDPOINT")
     api_version = os.getenv("API_VERSION")
+    deployment_name = os.getenv("AZURE_DEPLOYMENT")
     return OpenAIChatModel(
-        model_name=model_name,
+        model_name=deployment_name,
         provider=AzureProvider(
             azure_endpoint=endpoint,
             api_version=api_version,

@@ -26,7 +26,7 @@ def paths_are_equal(path1: TreePath, path2: TreePath) -> tuple[bool, int]:
         equal_levels += 1
     return True, equal_levels
 
-def get_random_path(tree_root: TreeNode, rng: np.random.Generator, return_random_docs: int | bool = False) -> TreePath:
+def get_random_path(tree_root: TreeNode, rng: np.random.Generator, return_random_docs: int | bool = False) -> TreePath | tuple[TreePath, list[int]]:
     """Generate a random path from the root to a leaf in the RTP tree."""
     current_node = tree_root
     path = TreePath(decisions=[])
