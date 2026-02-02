@@ -321,12 +321,12 @@ def test_rtp_builder_default_retry_parameters():
     assert builder.max_split_ratio is None
 
 
-@pytest.mark.llm
 def test_rtp_builder_with_split_ratio_constraints():
     """Test that RTPBuilder works with split ratio constraints."""
     # Use very restrictive split ratio constraints
     # The builder should still work, but may retry
     builder = RTPBuilder(
+        llm_model_name="gpt-oss:20b",
         use_gpu=False,
         n_medoids=2,
         n_documents_to_answer=3,

@@ -15,6 +15,7 @@ from .sampling import (
     KMeansSampler,
     RandomSampler,
     Sampler,
+    sampler_factory,
 )
 
 __all__ = [
@@ -30,4 +31,5 @@ __all__ = [
     "Sampler",
     "ChunkingDataset",
     "chunked_collate",
-    "NLIWithChunkingAndPooling"]
+    "NLIWithChunkingAndPooling",
+    "sampler_factory"]

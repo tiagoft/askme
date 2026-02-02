@@ -40,3 +40,15 @@ class NLIBatchingChukingConfig(BaseModel):
     batch_size: int = 16
     max_chunks_per_minibatch: int = 64
     max_characters_per_chunk: int = 10000
+    
+class SamplingConfiguration(BaseModel):
+    """Configuration for sampling strategies."""
+    selection_strategy: str = "vote_k"  # e.g., 'random', 'vote_k', 'kmeans'
+    n_select: int = 10
+    n_samples: int = 5
+    k_neighbors: int = 15 # Number of neighbors for VoteKSampler
+    seed: int = 42
+    total_size : Optional[int] = None  # Used for samplers that need total size
+    use_gpu: bool = True # Use GPU foi FAISS kmeans
+    niter: int = 50
+    spherical: bool = True

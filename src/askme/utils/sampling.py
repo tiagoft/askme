@@ -1,14 +1,30 @@
 import numpy as np
 import faiss
 from collections import defaultdict
+from askme.config.config import SamplingConfiguration, config_factory
+
+
+def sampler_factory(
+    config: SamplingConfiguration = config_factory(SamplingConfiguration),
+) -> Sampler:
+    """Factory function to create a sampler based on the sampler name."""
+    sampler_name = config.selection_strategy
+    if sampler_name == 'random':
+        return RandomSampler(config)
+    elif sampler_name == 'vote_k':
+        return VoteKSampler(config)
+    elif sampler_name == 'kmeans':
+        return KMeansSampler(config)
+    else:
+        raise ValueError(f"Unknown sampler name: {sampler_name}")
 
 
 class Sampler:
 
     def __init__(self):
         raise NotImplementedError
-    
-    def __call__(self):
+
+    def __call__(self, X: np.ndarray | None = None) -> np.ndarray:
         """Returns selected indices as a numpy array."""
         raise NotImplementedError
 
@@ -17,32 +33,34 @@ class RandomSampler(Sampler):
 
     def __init__(
         self,
-        total_size: int,
-        n_select: int,
-        seed: int = 42,
+        config: SamplingConfiguration = config_factory(SamplingConfiguration),
     ):
-        self.total_size = total_size
-        self.n_select = n_select
-        self.seed = seed
+        self.total_size = config.total_size
+        self.n_select = config.n_select
+        self.seed = config.seed
 
     def __call__(self, X: np.ndarray | None = None) -> np.ndarray:
         np.random.seed(self.seed)
-        indices = np.random.choice(self.total_size,
-                                   size=self.n_select,
-                                   replace=False)
+        if X is not None:
+            total_size = X.shape[0]
+        else:
+            total_size = self.total_size
+        
+        indices = np.random.choice(total_size,
+                               size=self.n_select,
+                               replace=False,)
         return indices
 
-
 class VoteKSampler(Sampler):
+
     def __init__(
         self,
         faiss_index: faiss.Index,
-        n_clusters: int,
-        k_neighbors: int = 15,
+        config: SamplingConfiguration = config_factory(SamplingConfiguration),
     ):
         self.faiss_index = faiss_index
-        self.n_clusters = n_clusters
-        self.k_neighbors = k_neighbors
+        self.n_clusters = config.n_select
+        self.k_neighbors = config.k_neighbors
 
     def __call__(self, X: np.ndarray) -> np.ndarray:
         return vote_k_sampling(
@@ -51,23 +69,21 @@ class VoteKSampler(Sampler):
             n_clusters=self.n_clusters,
             k_neighbors=self.k_neighbors,
         )
-        
+
+
 class KMeansSampler(Sampler):
+
     def __init__(
         self,
         faiss_index: faiss.Index,
-        n_clusters: int,
-        use_gpu: bool = True,
-        seed: int = 42,
-        niter: int = 50,
-        spherical: bool = True,
+        config: SamplingConfiguration = config_factory(SamplingConfiguration)
     ):
         self.faiss_index = faiss_index
-        self.n_clusters = n_clusters
-        self.use_gpu = use_gpu
-        self.seed = seed
-        self.niter = niter
-        self.spherical = spherical
+        self.n_clusters = config.n_select
+        self.use_gpu = config.use_gpu
+        self.seed = config.seed
+        self.niter = config.niter
+        self.spherical = config.spherical
 
     def __call__(self, X: np.ndarray) -> np.ndarray:
         return kmeans_with_faiss(
@@ -79,7 +95,6 @@ class KMeansSampler(Sampler):
             niter=self.niter,
             spherical=self.spherical,
         )
-
 
 
 def select_n_random_indices(

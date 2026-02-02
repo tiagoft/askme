@@ -4,6 +4,48 @@ import faiss
 import numpy as np
 from scipy.sparse import csr_matrix
 
+class LabelPropagation:
+    def __init__(
+        self,
+        faiss_index: faiss.Index,
+        n_neighbors: int = 10,
+        sigma: float = 1.0,
+        alpha: float = 0.99,
+        max_iter: int = 100,
+        tol: float = 1e-3,
+    ):
+        self.faiss_index = faiss_index
+        self.n_neighbors = n_neighbors
+        self.sigma = sigma
+        self.alpha = alpha
+        self.max_iter = max_iter
+        self.tol = tol
+
+    def fit_predict(self, X: np.ndarray, y: np.ndarray) -> np.ndarray:
+        # Step 1: Build k-NN graph
+        indices, distances = make_knn_graph(
+            X,
+            index=self.faiss_index,
+            n_neighbors=self.n_neighbors,
+        )
+
+        # Step 2: Build sparse affinity matrix W
+        W = sparse_affinity(
+            indices,
+            distances,
+            sigma=self.sigma,
+        )
+
+        # Step 3: Propagate labels
+        y_pred = propagate_labels(
+            W,
+            y,
+            alpha=self.alpha,
+            max_iter=self.max_iter,
+            tol=self.tol,
+        )
+
+        return y_pred
 
 # Step 1: Build k-NN graph using FAISS
 def make_knn_graph(
