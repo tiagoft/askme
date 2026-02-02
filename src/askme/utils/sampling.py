@@ -7,6 +7,10 @@ class Sampler:
 
     def __init__(self):
         raise NotImplementedError
+    
+    def __call__(self):
+        """Returns selected indices as a numpy array."""
+        raise NotImplementedError
 
 
 class RandomSampler(Sampler):
