@@ -183,7 +183,7 @@ class NLIWithChunkingAndPooling:
         self.chunk_fn = chunk_fn
         self.batch_size = config.batch_size
         self.max_chunks_per_minibatch = config.max_chunks_per_minibatch
-        self.max_characters = config.max_characters
+        self.max_characters_per_chunk = config.max_characters_per_chunk
         self.disable_tqdm = disable_tqdm
 
         self.nli_model = AutoModelForSequenceClassification.from_pretrained(
@@ -214,7 +214,7 @@ class NLIWithChunkingAndPooling:
                                       text,
                                       chunk_size=self.chunk_size,
                                       overlap=self.overlap,
-                                      max_characters=self.max_characters))
+                                      max_characters=self.max_characters_per_chunk))
         loader = DataLoader(
             dataset,
             batch_size=self.batch_size,

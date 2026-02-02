@@ -57,7 +57,6 @@ def chunk_text(
 
 
 class TextEmbeddingWithChunker:
-
     def __init__(self,
                  model_name: str,
                  chunk_size: int = 350,
@@ -103,7 +102,6 @@ class TextEmbeddingWithChunker:
 
 
 class ChunkingDataset(Dataset):
-
     def __init__(self, data, chunk_fn):
         self.data = data
         self.chunk_fn = chunk_fn
@@ -119,7 +117,6 @@ class ChunkingDataset(Dataset):
             'chunks': chunks,  # list of chunks
             'num_chunks': len(chunks)
         }
-
 
 def chunked_collate(batch):
     """Flattens chunks but keeps track of boundaries"""
@@ -145,7 +142,6 @@ def chunked_collate(batch):
         'original_batch_size': len(batch)
     }
 
-
 def _pool(logits, boundaries, label_idx):
     """Pool logits based on boundaries, selecting max per original item."""
     pooled = []
@@ -154,8 +150,8 @@ def _pool(logits, boundaries, label_idx):
         max_logit = torch.max(item_logits).item()
         pooled.append(max_logit)
     return pooled
-class NLIWithChunkingAndPooling:
 
+class NLIWithChunkingAndPooling:
     def __init__(self,
                  nli_model,
                  tokenizer,
@@ -232,24 +228,12 @@ class NLIWithChunkingAndPooling:
                 print(data['chunks'])
                 print(hypothesis)
 
-            # if inputs.overflowing_tokens is not None and inputs.overflowing_tokens.any():
-            #     print("\nSome chunks were truncated! Overflowing token counts per example:")
-            #     overflow_counts = inputs.overflowing_tokens.sum(dim=1).tolist()
-                
-            #     for i, count in enumerate(overflow_counts):
-            #         if count > 0:
-            #             text_preview = self.tokenizer.decode(inputs.input_ids[i], skip_special_tokens=True)
-            #             print(f"  Chunk {i:2d} → {count:3d} tokens overflowed | Text: {text_preview}")
             model_inputs = {
                 k: v for k, v in inputs.items()
                 if k not in ['overflowing_tokens', 'num_truncated_tokens', 'overflow_to_sample_mapping']
             }
             inputs = model_inputs
-            # print(f"Processing {len(data['chunks'])} chunks...")
-            # print(f"Input token shape: {inputs['input_ids'].shape}")
-            # print(f"Text chunks: {data['chunks'][:2]} ...")
-            # print(f"Overflowing chunks: {data['chunks'][-2:]} ...")
-            
+
             # Iterate on inputs in smaller minibatches if too large
             if len(data['chunks']) > self.max_chunks_per_minibatch:
                 logits_list = []

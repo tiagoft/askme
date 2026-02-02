@@ -39,4 +39,4 @@ class NLIBatchingChukingConfig(BaseModel):
     label_names: list[str] = ["entailment", "neutral", "contradiction"]
     batch_size: int = 16
     max_chunks_per_minibatch: int = 64
-    max_characters: int = 10000
+    max_characters_per_chunk: int = 10000
