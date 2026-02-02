@@ -9,7 +9,8 @@ import faiss
 import numpy as np
 from tqdm import tqdm
 
-from askme.utils import NLIWithChunkingAndPooling
+from askme.config.config import NLIBatchingChukingConfig, SamplingConfiguration, config_factory
+from .nli import NLIWithChunkingAndPooling
 
 from ..askquestions import check_entailment, models
 from ..makequestions import api, makequestion
@@ -78,6 +79,12 @@ class RTPBuilder:
         selection_strategy: Union['kmeans', 'random', 'votek'] = 'kmeans',
         nli_selection_strategy: Union['kmeans', 'random', 'votek'] = 'kmeans',
         nli_batched: bool = True,
+        nli_config: NLIBatchingChukingConfig = config_factory(
+            NLIBatchingChukingConfig),
+        nli_sampler_config: SamplingConfiguration = config_factory(
+            SamplingConfiguration),
+        llm_sampler_config: SamplingConfiguration = config_factory(
+            SamplingConfiguration),
     ):
         """
         Initialize the RTPBuilder with all necessary models.
@@ -128,9 +135,8 @@ class RTPBuilder:
         self.nli_batched = nli_batched
         self.nli_selection_strategy = nli_selection_strategy
 
-        self.llm_sampler = sampler_factory(self.selection_strategy,
-                                           )
-        self.nli_sampler = sampler_factory(self.nli_selection_strategy)
+        self.llm_sampler = sampler_factory(llm_sampler_config)
+        self.nli_sampler = sampler_factory(nli_sampler_config)
 
         # Determine device
         device = 'cuda' if use_gpu else 'cpu'
@@ -166,30 +172,14 @@ class RTPBuilder:
                     f"Cache contiains {len(self.embedding_model.cache)} entries."
                 )
 
-        # Initialize NLI model
-        self.nli_model, self.nli_tokenizer = models.make_nli_model(
-            model_name=nli_model_name)
-
-        if use_gpu:
-            self.nli_model = self.nli_model.to('cuda')
-
-        if nli_batched:
-            self.nli_batching_model = NLIWithChunkingAndPooling(
-                nli_model=self.nli_model,
-                tokenizer=self.nli_tokenizer,
-                chunk_size=chunk_size,
-                overlap=overlap,
-                device=device,
-                batch_size=nli_batch_size,
-            )
+        self.nli_batching_model = NLIWithChunkingAndPooling(
+            config=nli_config, )
 
         # Initialize LLM model
         if llm_model_name.startswith('gpt-4o'):
             self.llm_model = api.make_azure_model(llm_model_name)
         else:
             self.llm_model = api.make_ollama_model(llm_model_name)
-            
-        
 
     def __call__(
         self,
@@ -244,40 +234,45 @@ class RTPBuilder:
             print(
                 f"Selecting {self.n_medoids} elements for hypothesis generation..."
             )
-        if self.selection_strategy == 'random':
-            if self.verbose:
-                print("Selecting elements via random selection...")
+        medoid_indices = self.llm_sampler(
+            faiss_index=faiss_index,
+            X=np.array(embeddings),
+        )
+        medoids = [text_collection[idx] for idx in medoid_indices]
+        # if self.selection_strategy == 'random':
+        #     if self.verbose:
+        #         print("Selecting elements via random selection...")
 
-            medoid_indices = select_n_random_indices(
-                total_size=len(text_collection),
-                n_select=min(self.n_medoids, len(text_collection)),
-                seed=1234,
-            )
-            medoids = [text_collection[idx] for idx in medoid_indices]
-        elif self.selection_strategy == 'kmeans':
-            if self.verbose:
-                print("Selecting medoids via k-means...")
+        #     medoid_indices = select_n_random_indices(
+        #         total_size=len(text_collection),
+        #         n_select=min(self.n_medoids, len(text_collection)),
+        #         seed=1234,
+        #     )
+        #     medoids = [text_collection[idx] for idx in medoid_indices]
+        # elif self.selection_strategy == 'kmeans':
+        #     if self.verbose:
+        #         print("Selecting medoids via k-means...")
 
-            n_clusters = min(self.n_medoids, len(text_collection))
-            medoid_indices = kmeans_with_faiss(
-                faiss_index=faiss_index,
-                X=embeddings,
-                n_clusters=n_clusters,
-            )
+        #     n_clusters = min(self.n_medoids, len(text_collection))
+        #     medoid_indices = kmeans_with_faiss(
+        #         faiss_index=faiss_index,
+        #         X=embeddings,
+        #         n_clusters=n_clusters,
+        #     )
 
-            medoids = [text_collection[idx] for idx in medoid_indices]
-        elif self.selection_strategy == 'votek':
-            if self.verbose:
-                print("Selecting elements via vote-k sampling...")
+        #     medoids = [text_collection[idx] for idx in medoid_indices]
+        # elif self.selection_strategy == 'votek':
+        #     if self.verbose:
+        #         print("Selecting elements via vote-k sampling...")
 
-            n_clusters = min(self.n_medoids, len(text_collection))
-            medoid_indices = vote_k_sampling(
-                faiss_index,
-                embeddings,
-                n_clusters=n_clusters,
-                k_neighbors=30,
-            )
-            medoids = [text_collection[idx] for idx in medoid_indices]
+        #     n_clusters = min(self.n_medoids, len(text_collection))
+        #     medoid_indices = vote_k_sampling(
+        #         faiss_index,
+        #         embeddings,
+        #         n_clusters=n_clusters,
+        #         k_neighbors=30,
+        #     )
+        #     medoids = [text_collection[idx] for idx in medoid_indices]
 
         metrics.medoid_selection_time_ms = (time.time() -
                                             t_initial_medoid) * 1000

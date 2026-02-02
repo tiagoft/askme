@@ -16,7 +16,7 @@ sample_text_collection = [
     "Fish swim in the ocean.",
     "Elephants are the largest land animals.",
     "Lions are known as the kings of the jungle.",
-]
+] * 5
 
 @pytest.mark.llm
 def test_rtp_builder_initialization_cpu():
