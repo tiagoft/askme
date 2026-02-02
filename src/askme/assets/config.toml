@@ -7,3 +7,13 @@ frequency_penalty = 0.0
 presence_penalty = 0.0
 max_words_per_text = 350
 retries = 10
+
+[NLIBatchingChukingConfig]
+model_name = "MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7"
+batch_size = 8 # Number of documents per batch
+chunk_size = 350 # Number of words per chunk
+overlap = 50 #  Word overlap between chunks
+max_chunks_per_minibatch = 64 # Texts that are too long might need to be subdivided in minibatches
+max_characters = 2000 # Maximum number of characters per chunk (avoids spurious sequences without spaces)
+device = 'auto' # auto = gpu if available, else cpu
+label_names=["entailment", "neutral", "contradiction"] # Order of labels (depends on the model)

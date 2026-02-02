@@ -28,3 +28,15 @@ class MakeQuestionsConfig(BaseModel):
     max_words_per_text: int = 350
     retries: int = 10
     blacklist: Optional[list[str]] = []
+
+class NLIBatchingChukingConfig(BaseModel):
+    """Configuration for NLI batching and chunking."""
+
+    model_name: str = "MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7"
+    chunk_size: int = 512
+    overlap: int = 50
+    device: str = "auto"  # 'auto', 'cpu', or 'cuda'
+    label_names: list[str] = ["entailment", "neutral", "contradiction"]
+    batch_size: int = 16
+    max_chunks_per_minibatch: int = 64
+    max_characters: int = 10000
