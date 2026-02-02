@@ -41,7 +41,7 @@ The documents were labeled within the following categories: {', '.join(labels)}.
 
 You must judge the following aspects of the predicate. For each question, answer Yes/No (or the specified format) followed by 1–2 sentences of reasoning. Base your judgment strictly on the predicate text, the provided category list, and any grounding examples.
 
-q1. Is this predicate largely redundant with simply assigning documents to one of these categories? In other words, does it mostly replicate at least one of the gold topic boundaries (e.g., it would assign almost the same documents as one of the categories World/Sports/Business/SciTech)?
+q1. Is this predicate largely redundant with simply assigning documents to one of these categories? In other words, does it mostly replicate at least one of the gold topic boundaries (e.g., it would assign almost the same documents as one of the categories?
    - Yes/No
    - Low-redundancy example: "The text focuses on factual reporting rather than personal opinion" (cuts across all categories).
    - High-redundancy example: "The text is about international politics or conflicts" (almost identical to World category).
