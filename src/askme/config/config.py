@@ -35,6 +35,7 @@ class TextEmbeddingConfig(BaseModel):
     device: str = "auto"  # 'auto', 'cpu', or 'cuda'
     chunk_size: int = 100
     overlap: int = 25
+    cache: str = "./embedding_cache.cache"
 
 class NLIBatchingChukingConfig(BaseModel):
     """Configuration for NLI batching and chunking."""

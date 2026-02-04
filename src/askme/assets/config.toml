@@ -32,3 +32,4 @@ model_name = "sentence-transformers/all-mpnet-base-v2"
 device = "auto"  # 'auto', 'cpu', or 'cuda'
 chunk_size = 100
 overlap = 25
+cache = "~/.text_embedding_cache"

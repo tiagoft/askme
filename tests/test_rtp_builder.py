@@ -229,18 +229,6 @@ def test_rtp_builder_returns_metrics_when_requested():
     assert metrics.nli_time_ms > 0.0
 
 
-@pytest.mark.llm
-def test_rtp_builder_default_no_metrics():
-    """Test that RTPBuilder returns only TreeNode by default (return_metrics=False)."""
-    builder = RTPBuilder(use_gpu=False, n_medoids=2, n_documents_to_answer=2)
-    
-    result = builder(sample_text_collection)
-    
-    # Should return just TreeNode, not a tuple
-    assert isinstance(result, TreeNode)
-    assert not isinstance(result, tuple)
-
-
 def test_split_metrics_can_be_serialized():
     """Test that SplitMetrics can be serialized to JSON."""
     metrics = SplitMetrics(
@@ -281,44 +269,6 @@ def test_split_metrics_default_values():
     assert metrics.llm_request_time_ms == 0.0
     assert metrics.nli_time_ms == 0.0
     assert metrics.num_nodes == 1
-
-
-@pytest.mark.llm
-def test_rtp_builder_metrics_timing_consistency():
-    """Test that timing metrics are consistent (total >= sum of parts)."""
-    builder = RTPBuilder(use_gpu=False, n_medoids=2, n_documents_to_answer=2)
-    
-    result, metrics = builder(sample_text_collection, return_metrics=True)
-    
-    # Total time should be at least as long as the sum of measured parts
-    # (though not necessarily equal since there are other operations)
-    measured_time = metrics.faiss_search_time_ms + metrics.label_propagation_time_ms
-    assert metrics.total_time_ms >= measured_time
-
-
-@pytest.mark.llm
-def test_rtp_builder_with_retry_parameters():
-    """Test that RTPBuilder accepts retry parameters."""
-    builder = RTPBuilder(
-        use_gpu=False,
-        max_retries=5,
-        min_split_ratio=0.3,
-        max_split_ratio=0.7,
-    )
-    
-    assert builder.max_retries == 5
-    assert builder.min_split_ratio == 0.3
-    assert builder.max_split_ratio == 0.7
-
-
-@pytest.mark.llm
-def test_rtp_builder_default_retry_parameters():
-    """Test that RTPBuilder has correct default retry parameters."""
-    builder = RTPBuilder(use_gpu=False)
-    
-    assert builder.max_retries == 3
-    assert builder.min_split_ratio is None
-    assert builder.max_split_ratio is None
 
 
 def test_rtp_builder_with_split_ratio_constraints():

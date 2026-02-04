@@ -1,30 +1,19 @@
+from askme.config.config import TextEmbeddingConfig, config_factory
 from askme.utils import TextEmbeddingWithChunker
 try:
     import torch
 except Exception:
     torch = None
 import numpy as np
-import pytest
+from pathlib import Path
+import os
 
 
 def test_chunk_text():
     text = "This is a sample text that will be chunked into smaller pieces. " * 100
-    large_text_embedding = TextEmbeddingWithChunker(
-        model_name='all-MiniLM-L6-v2',
-        chunk_size=20,
-        overlap=5,
-    )(text)
-    assert large_text_embedding is not None
-
-@pytest.mark.gpu
-def test_chunk_text_gpu():
-    text = "This is a sample text that will be chunked into smaller pieces. " * 100
-    large_text_embedding = TextEmbeddingWithChunker(
-        model_name='all-MiniLM-L6-v2',
-        chunk_size=20,
-        overlap=5,
-        device='cuda' if torch.cuda.is_available() else 'cpu',
-    )(text)
-    assert large_text_embedding is not None
-    assert isinstance(large_text_embedding, np.ndarray)
-    
+    config = config_factory(TextEmbeddingConfig)
+    large_text_embedding = TextEmbeddingWithChunker(config=config)
+    embeddings = large_text_embedding(text)
+    assert embeddings is not None
+    assert isinstance(embeddings, np.ndarray)
+    assert os.path.exists(Path(large_text_embedding.cache_fn).expanduser())

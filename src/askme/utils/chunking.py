@@ -5,6 +5,9 @@ import numpy as np
 import pickle
 from tqdm import tqdm 
 import re
+from askme.config.config import config_factory, TextEmbeddingConfig
+import shelve
+from pathlib import Path 
 
 def chunk_text(
     text: str,
@@ -58,48 +61,45 @@ def chunk_text(
 
 class TextEmbeddingWithChunker:
     def __init__(self,
-                 model_name: str,
-                 chunk_size: int = 100,
-                 overlap: int = 25,
-                 pooling_fn: callable = np.mean,
-                 device: str = 'cpu'):
+                 config: TextEmbeddingConfig = config_factory(TextEmbeddingConfig),
+                 pooling_fn: callable = np.mean,):
 
+        if config.device == 'auto':
+            if torch.cuda.is_available():
+                device = 'cuda'
+            else:
+                device = 'cpu'
+        else:
+            device = config.device
+            
         self.model = SentenceTransformer(
-            model_name,
+            config.model_name,
             device=device,
         )
-        self.chunk_size = chunk_size
-        self.overlap = overlap
+        self.chunk_size = config.chunk_size
+        self.overlap = config.overlap
         self.pooling_fn = pooling_fn
-        self.cache = {}
+        self.cache_fn = config.cache
 
     def __call__(self, text: str) -> np.ndarray:
-        if text in self.cache:
-            return self.cache[text]
+        cache = shelve.open(Path(self.cache_fn).expanduser())
+        if text in cache:
+            y = cache[text]
+            cache.close()
+            return y
         chunks = chunk_text(text, self.chunk_size, self.overlap)
         chunk_embeddings = self.model.encode(chunks)
         embedding = self.pooling_fn(chunk_embeddings, axis=0)
-        self.cache[text] = embedding
+        cache[text] = embedding
+        cache.close()
         return embedding
-
-    def save_cache(self, path: str, append: bool = False):
-        if append:
-            try:
-                with open(path, 'rb') as f:
-                    current_cache = pickle.load(f)
-                self.cache.update(current_cache)
-            except FileNotFoundError:
-                pass
-        with open(path, 'wb') as f:
-            pickle.dump(self.cache, f)
-
-    def load_cache(self, path: str):
-        try:
-            with open(path, 'rb') as f:
-                self.cache = pickle.load(f)
-        except FileNotFoundError:
-            return {}
-
+    
+    def cache_stats(self):
+        cache = shelve.open(Path(self.cache_fn).expanduser())
+        n_items = len(cache)
+        total_size = sum(len(pickle.dumps(v)) for v in cache.values())
+        cache.close()
+        return n_items, total_size
 
 class ChunkingDataset(Dataset):
     def __init__(self, data, chunk_fn):

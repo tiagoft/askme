@@ -9,7 +9,7 @@ import faiss
 import numpy as np
 from tqdm import tqdm
 
-from askme.config.config import MakeQuestionsConfig, NLIBatchingChukingConfig, SamplingConfig, config_factory
+from askme.config.config import MakeQuestionsConfig, NLIBatchingChukingConfig, SamplingConfig, TextEmbeddingConfig, config_factory
 from .nli import NLIWithChunkingAndPooling
 
 from ..askquestions import check_entailment, models
@@ -55,38 +55,41 @@ class RTPBuilder:
     """
 
     def __init__(
-        self,
-        use_gpu: bool = False,
-        embedding_model_name:
+            self,
+            use_gpu: bool = False,
+            embedding_model_name:
         str = 'sentence-transformers/paraphrase-albert-small-v2',
-        nli_model_name:
+            nli_model_name:
         str = 'MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7',
-        llm_model_name: str = "gpt-4o-mini",
-        chunk_size: int = 50,
-        overlap: int = 10,
-        n_medoids: int = 4,
-        n_documents_to_answer: Union[int, str, float] = 'all',
-        knn_neighbors: int = 2,
-        nli_batch_size: int = 16,
-        alpha: float = 0.99,
-        max_iter: int = 100,
-        tol: float = 1e-3,
-        max_retries: int = 3,
-        min_split_ratio: Optional[float] = None,
-        max_split_ratio: Optional[float] = None,
-        verbose: bool = False,
-        cache_dir: str | None = None,
-        selection_strategy: Union['kmeans', 'random', 'votek'] = 'kmeans',
-        nli_selection_strategy: Union['kmeans', 'random', 'votek'] = 'kmeans',
-        nli_batched: bool = True,
-        llm_model_config: MakeQuestionsConfig = config_factory(
-            MakeQuestionsConfig),
-        nli_config: NLIBatchingChukingConfig = config_factory(
-            NLIBatchingChukingConfig),
-        nli_sampler_config: SamplingConfig = config_factory(
-            SamplingConfig),
-        llm_sampler_config: SamplingConfig = config_factory(
-            SamplingConfig),
+            llm_model_name: str = "gpt-4o-mini",
+            chunk_size: int = 50,
+            overlap: int = 10,
+            n_medoids: int = 4,
+            n_documents_to_answer: Union[int, str, float] = 'all',
+            knn_neighbors: int = 2,
+            nli_batch_size: int = 16,
+            alpha: float = 0.99,
+            max_iter: int = 100,
+            tol: float = 1e-3,
+            max_retries: int = 3,
+            min_split_ratio: Optional[float] = None,
+            max_split_ratio: Optional[float] = None,
+            verbose: bool = False,
+            cache_dir: str | None = None,
+            selection_strategy: Union['kmeans', 'random', 'votek'] = 'kmeans',
+            nli_selection_strategy: Union['kmeans', 'random',
+                                          'votek'] = 'kmeans',
+            nli_batched: bool = True,
+            embedding_model_config: TextEmbeddingConfig = config_factory(
+                TextEmbeddingConfig),
+            llm_model_config: MakeQuestionsConfig = config_factory(
+                MakeQuestionsConfig),
+            nli_config: NLIBatchingChukingConfig = config_factory(
+                NLIBatchingChukingConfig),
+            nli_sampler_config: SamplingConfig = config_factory(
+                SamplingConfig),
+            llm_sampler_config: SamplingConfig = config_factory(
+                SamplingConfig),
     ):
         """
         Initialize the RTPBuilder with all necessary models.
@@ -134,7 +137,7 @@ class RTPBuilder:
         self.nli_sampler_config = nli_sampler_config
         self.llm_sampler_config = llm_sampler_config
         self.llm_model_config = llm_model_config
-        
+
         # Determine device
         device = 'cuda' if use_gpu else 'cpu'
 
@@ -145,10 +148,7 @@ class RTPBuilder:
 
         # Initialize embedding model
         self.embedding_model = TextEmbeddingWithChunker(
-            model_name=embedding_model_name,
-            chunk_size=chunk_size,
-            overlap=overlap,
-            device=device,
+            config=embedding_model_config
         )
 
         if cache_dir is not None:
@@ -264,8 +264,9 @@ class RTPBuilder:
             llm_start = time.time()
             try:
                 self.llm_model_config.blacklist = blacklist
-                question_asker = makequestion.QuestionMaker(config=self.llm_model_config)
-                response=question_asker(collection=medoids)
+                question_asker = makequestion.QuestionMaker(
+                    config=self.llm_model_config)
+                response = question_asker(collection=medoids)
             except:
                 print("LLM call failed during hypothesis generation.")
                 print("Returning leaf node with all documents.")
@@ -277,7 +278,7 @@ class RTPBuilder:
                     metrics.success = False
                     return root, metrics
                 return root
-            
+
             # Track LLM tokens
             metrics.llm_input_tokens += response.usage().input_tokens
             metrics.llm_output_tokens += response.usage().output_tokens
