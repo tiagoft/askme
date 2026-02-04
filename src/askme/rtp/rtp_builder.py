@@ -150,33 +150,12 @@ class RTPBuilder:
         self.embedding_model = TextEmbeddingWithChunker(
             config=embedding_model_config)
 
-        if cache_dir is not None:
-            self.cache_dir = Path(cache_dir).expanduser()
-            self.cache_dir.mkdir(parents=True, exist_ok=True)
-        else:
-            self.cache_dir = None
-
-        if self.cache_dir is not None:
-
-            self.embedding_model.load_cache(
-                str(self.cache_dir / 'embedding_cache.pkl'))
-            if verbose:
-                print(
-                    f"Loaded embedding cache from {self.cache_dir / 'embedding_cache.pkl'}"
-                )
-                print(
-                    f"Cache contiains {len(self.embedding_model.cache)} entries."
-                )
-
+        # Initialize NLI model
         self.nli_batching_model = NLIWithChunkingAndPooling(
             config=nli_config, )
         self.nli_config = nli_config
 
-        # Initialize LLM model
-        if llm_model_name.startswith('gpt-4o'):
-            self.llm_model = api.make_azure_model(llm_model_name)
-        else:
-            self.llm_model = api.make_ollama_model(llm_model_name)
+
 
     def __call__(
         self,
@@ -219,9 +198,6 @@ class RTPBuilder:
             return_embeddings=True,
             gpu_resources=self.gpu_resources,
         )
-        if self.cache_dir is not None:
-            self.embedding_model.save_cache(
-                str(self.cache_dir / 'embedding_cache.pkl'))
         metrics.faiss_search_time_ms = (time.time() - faiss_start) * 1000
 
         # Step 2: Get medoids via k-means for hypothesis generation
