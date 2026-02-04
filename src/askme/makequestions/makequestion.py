@@ -4,6 +4,8 @@ from pydantic import BaseModel
 from pydantic_ai import Agent, AgentRunResult, UnexpectedModelBehavior
 from askme.assets import rtp_prompts
 from askme.config.config import MakeQuestionsConfig, config_factory
+import shelve
+from pathlib import Path
 
 class HypothesisAboutCollection(BaseModel):
     hypothesis: str
@@ -20,14 +22,17 @@ class QuestionMaker:
             self.llm_model = make_azure_model(self.config.model_name)
         else:
             self.llm_model = make_ollama_model(self.config.model_name)
+        self.cache_fn = Path(self.config.cache).expanduser()
         
     def __call__(self, collection: list[str]) -> AgentRunResult[HypothesisAboutCollection]:
+        
         return make_a_question_about_collection(
             collection,
             model=self.llm_model,
             retries=self.config.retries,
             blacklist=self.config.blacklist,
             max_words_per_text=self.config.max_words_per_text,
+            cache_fn=self.cache_fn,
         )
 
 def crop_text_in_words(text: str, max_words: int) -> str:
@@ -45,6 +50,7 @@ def make_a_question_about_split(
     retries: int = 10,
     max_words_per_text: int = 350,
     blacklist: list[str] = [],
+    cache_fn: str | None = None,
 ) -> AgentRunResult[HypothesisAboutCollection]:
     """Generate a hypothesis about the difference between two collections of texts."""
     
@@ -57,6 +63,14 @@ def make_a_question_about_split(
     
     if blacklist is not None and len(blacklist) > 0:
         user_prompt += f"\nAvoid the following topics: {blacklist}\n"
+    
+    if cache_fn is not None:
+        prompt_hash = hash((system_prompt, user_prompt))
+        cache = shelve.open(cache_fn)
+        if prompt_hash in cache:
+            cached_result = cache[prompt_hash]
+            cache.close()
+            return cached_result
         
     agent = Agent(
         model,
@@ -78,6 +92,7 @@ def make_a_question_about_collection(
     retries: int = 10,
     blacklist: list[str] = [],
     max_words_per_text: int = 350,
+    cache_fn: str | None = None,
 ) -> AgentRunResult[HypothesisAboutCollection]:
     """Generate a hypothesis about a collection of texts."""
     
@@ -89,6 +104,14 @@ def make_a_question_about_collection(
     if blacklist is not None and len(blacklist) > 0:
         user_prompt += f"\nAvoid the following topics: {blacklist}\n"
 
+    if cache_fn is not None:
+        prompt_hash = system_prompt + user_prompt
+        cache = shelve.open(cache_fn)
+        if prompt_hash in cache:
+            cached_result = cache[prompt_hash]
+            cache.close()
+            return cached_result
+
     agent = Agent(
         model,
         output_type=HypothesisAboutCollection,
@@ -97,6 +120,10 @@ def make_a_question_about_collection(
     )
     try:
         result = agent.run_sync(user_prompt)
+        if cache_fn is not None:
+            cache = shelve.open(cache_fn)
+            cache[prompt_hash] = result
+            cache.close()
     except UnexpectedModelBehavior as e:
         raise e
     

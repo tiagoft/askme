@@ -9,13 +9,25 @@ from askme.assets import config_data as default_config_data
 def config_factory(
     config_class: type[BaseModel],
     config_data: dict | None = None,
+    override_data: str | None = None,
 ) -> BaseModel:
     if config_data is None:
-        config_data = default_config_data[config_class.__name__]
+        config_data = default_config_data
+    config_dict = config_data[config_class.__name__]
     
-    return config_class(**config_data)
+    if override_data is not None:
+        override_dict = config_data[override_data]
+        config_dict.update(override_dict)
+    
+    return config_class(**config_dict)
 
-
+class LabelPropagationConfig(BaseModel):
+    n_neighbors: int = 10
+    sigma: float = 1.0
+    alpha: float = 0.99
+    max_iter: int = 100
+    tol: float = 1e-3
+    
 class MakeQuestionsConfig(BaseModel):
     """Configuration for making questions."""
 
@@ -28,6 +40,7 @@ class MakeQuestionsConfig(BaseModel):
     max_words_per_text: int = 350
     retries: int = 10
     blacklist: Optional[list[str]] = []
+    cache: str = "./make_questions_cache.cache"
 
 class TextEmbeddingConfig(BaseModel):
     """Configuration for text embedding model."""
@@ -52,7 +65,7 @@ class NLIBatchingChukingConfig(BaseModel):
 class SamplingConfig(BaseModel):
     """Configuration for sampling strategies."""
     selection_strategy: str = "vote_k"  # e.g., 'random', 'vote_k', 'kmeans'
-    n_select: int = 10
+    n_select: int | float = 10
     n_samples: int = 5
     k_neighbors: int = 15 # Number of neighbors for VoteKSampler
     seed: int = 42

@@ -9,7 +9,13 @@ import faiss
 import numpy as np
 from tqdm import tqdm
 
-from askme.config.config import MakeQuestionsConfig, NLIBatchingChukingConfig, SamplingConfig, TextEmbeddingConfig, config_factory
+from askme.config.config import (MakeQuestionsConfig,
+                                 NLIBatchingChukingConfig,
+                                 SamplingConfig,
+                                 TextEmbeddingConfig,
+                                 LabelPropagationConfig,
+                                 config_factory,)
+
 from .nli import NLIWithChunkingAndPooling
 
 from ..askquestions import check_entailment, models
@@ -55,41 +61,43 @@ class RTPBuilder:
     """
 
     def __init__(
-            self,
-            use_gpu: bool = False,
-            embedding_model_name:
+        self,
+        use_gpu: bool = False,
+        embedding_model_name:
         str = 'sentence-transformers/paraphrase-albert-small-v2',
-            nli_model_name:
+        nli_model_name:
         str = 'MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7',
-            llm_model_name: str = "gpt-4o-mini",
-            chunk_size: int = 50,
-            overlap: int = 10,
-            n_medoids: int = 4,
-            n_documents_to_answer: Union[int, str, float] = 'all',
-            knn_neighbors: int = 2,
-            nli_batch_size: int = 16,
-            alpha: float = 0.99,
-            max_iter: int = 100,
-            tol: float = 1e-3,
-            max_retries: int = 3,
-            min_split_ratio: Optional[float] = None,
-            max_split_ratio: Optional[float] = None,
-            verbose: bool = False,
-            cache_dir: str | None = None,
-            selection_strategy: Union['kmeans', 'random', 'votek'] = 'kmeans',
-            nli_selection_strategy: Union['kmeans', 'random',
-                                          'votek'] = 'kmeans',
-            nli_batched: bool = True,
-            embedding_model_config: TextEmbeddingConfig = config_factory(
-                TextEmbeddingConfig),
-            llm_model_config: MakeQuestionsConfig = config_factory(
-                MakeQuestionsConfig),
-            nli_config: NLIBatchingChukingConfig = config_factory(
-                NLIBatchingChukingConfig),
-            nli_sampler_config: SamplingConfig = config_factory(
-                SamplingConfig),
-            llm_sampler_config: SamplingConfig = config_factory(
-                SamplingConfig),
+        llm_model_name: str = "gpt-4o-mini",
+        chunk_size: int = 50,
+        overlap: int = 10,
+        n_medoids: int = 4,
+        n_documents_to_answer: Union[int, str, float] = 'all',
+        knn_neighbors: int = 2,
+        nli_batch_size: int = 16,
+        alpha: float = 0.99,
+        max_iter: int = 100,
+        tol: float = 1e-3,
+        max_retries: int = 3,
+        min_split_ratio: Optional[float] = None,
+        max_split_ratio: Optional[float] = None,
+        verbose: bool = False,
+        cache_dir: str | None = None,
+        selection_strategy: Union['kmeans', 'random', 'votek'] = 'kmeans',
+        nli_selection_strategy: Union['kmeans', 'random', 'votek'] = 'kmeans',
+        nli_batched: bool = True,
+        embedding_model_config: TextEmbeddingConfig = config_factory(
+            TextEmbeddingConfig),
+        llm_model_config: MakeQuestionsConfig = config_factory(
+            MakeQuestionsConfig),
+        nli_config: NLIBatchingChukingConfig = config_factory(
+            NLIBatchingChukingConfig),
+        nli_sampler_config: SamplingConfig = config_factory(
+            SamplingConfig,
+            override_data='NLISamplingConfig',
+        ),
+        llm_sampler_config: SamplingConfig = config_factory(SamplingConfig,),
+        label_propagation_config: LabelPropagationConfig = config_factory(
+            LabelPropagationConfig, )
     ):
         """
         Initialize the RTPBuilder with all necessary models.
@@ -119,24 +127,16 @@ class RTPBuilder:
             nli_batched: Whether to use batched NLI calls (default: True)
         """
         self.use_gpu = use_gpu
-        self.embedding_model_name = embedding_model_name
-        self.n_medoids = n_medoids
-        self.n_documents_to_answer = n_documents_to_answer
-        self.knn_neighbors = knn_neighbors
-        self.alpha = alpha
-        self.max_iter = max_iter
-        self.tol = tol
         self.max_retries = max_retries
         self.min_split_ratio = min_split_ratio
         self.max_split_ratio = max_split_ratio
         self.verbose = verbose
-        self.selection_strategy = selection_strategy
-        self.nli_batch_size = nli_batch_size
-        self.nli_batched = nli_batched
         self.nli_selection_strategy = nli_selection_strategy
         self.nli_sampler_config = nli_sampler_config
         self.llm_sampler_config = llm_sampler_config
         self.llm_model_config = llm_model_config
+        self.embedding_model_config = embedding_model_config
+        self.label_propagation_config = label_propagation_config
 
         # Determine device
         device = 'cuda' if use_gpu else 'cpu'
@@ -148,8 +148,7 @@ class RTPBuilder:
 
         # Initialize embedding model
         self.embedding_model = TextEmbeddingWithChunker(
-            config=embedding_model_config
-        )
+            config=embedding_model_config)
 
         if cache_dir is not None:
             self.cache_dir = Path(cache_dir).expanduser()
@@ -171,6 +170,7 @@ class RTPBuilder:
 
         self.nli_batching_model = NLIWithChunkingAndPooling(
             config=nli_config, )
+        self.nli_config = nli_config
 
         # Initialize LLM model
         if llm_model_name.startswith('gpt-4o'):
@@ -289,23 +289,7 @@ class RTPBuilder:
 
             # Step 4: Use NLI to answer the question for selected documents
             t_initial_kmeans = time.time()
-            if self.n_documents_to_answer == 'same':
-                n_docs_to_label = len(medoid_indices)
-                doc_indices = medoid_indices
-            elif self.n_documents_to_answer == 'all':
-                doc_indices = list(range(len(text_collection)))
-                n_docs_to_label = len(text_collection)
-            else:
-                if isinstance(self.n_documents_to_answer, float):
-                    n_docs_to_label = int(self.n_documents_to_answer *
-                                          len(text_collection))
-                else:
-                    n_docs_to_label = int(self.n_documents_to_answer)
-                n_docs_to_label = min(n_docs_to_label, len(text_collection))
-
-            nli_sampler_config = self.nli_sampler_config
-            nli_sampler_config.n_select = n_docs_to_label
-            nli_sampler = sampler_factory(nli_sampler_config)
+            nli_sampler = sampler_factory(self.nli_sampler_config)
             doc_indices = nli_sampler(
                 faiss_index=faiss_index,
                 X=np.array(embeddings),
@@ -358,10 +342,7 @@ class RTPBuilder:
             label_prop_start = time.time()
             label_propagation = LabelPropagation(
                 faiss_index=faiss_index,
-                alpha=self.alpha,
-                max_iter=self.max_iter,
-                tol=self.tol,
-                n_neighbors=self.knn_neighbors)
+                config=self.label_propagation_config,)
             X = np.array(embeddings).astype('float32')
             y = answers
             propagated_labels = label_propagation.fit_predict(X, y)

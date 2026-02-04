@@ -284,6 +284,7 @@ def test_rtp_builder_with_split_ratio_constraints():
         min_split_ratio=0.2,
         max_split_ratio=0.8,
     )
+    #builder.nli_config.n_documents_to_answer = 0.1
     
     result, metrics = builder(sample_text_collection, return_metrics=True)
     

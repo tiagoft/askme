@@ -98,7 +98,7 @@ class KMeansSampler(Sampler):
 
 def select_n_random_indices(
     total_size: int,
-    n_select: int,
+    n_select: int | float,
     seed: int = 42,
 ) -> np.ndarray:
     """
@@ -112,6 +112,8 @@ def select_n_random_indices(
         Numpy array of selected indices
     """
     np.random.seed(seed)
+    if isinstance(n_select, float):
+        n_select = int(total_size * n_select)
     indices = np.random.choice(total_size, size=n_select, replace=False)
     return indices
 
@@ -171,9 +173,12 @@ def fast_votek(embeddings, select_num, k, vote_file=None):
 def vote_k_sampling(
     faiss_index: faiss.Index,
     X: np.ndarray,
-    n_clusters: int,
+    n_clusters: int | float,
     k_neighbors: int = 15,
 ) -> np.ndarray:
+
+    if isinstance(n_clusters, float):
+        n_clusters = int(X.shape[0] * n_clusters)
 
     distances, indices = faiss_index.search(X, k_neighbors + 1)
 
@@ -214,12 +219,15 @@ def vote_k_sampling(
 def kmeans_with_faiss(
     faiss_index: faiss.Index,
     X: np.ndarray,
-    n_clusters: int,
+    n_clusters: int | float,
     use_gpu: bool = True,
     seed: int = 42,
     niter: int = 50,
     spherical: bool = True,
 ) -> np.ndarray:
+
+    if isinstance(n_clusters, float):
+        n_clusters = int(X.shape[0] * n_clusters)
 
     kmeans = faiss.Kmeans(
         d=faiss_index.d,

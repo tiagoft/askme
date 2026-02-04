@@ -1,5 +1,5 @@
 from typing import Tuple
-
+from askme.config.config import LabelPropagationConfig, config_factory
 import faiss
 import numpy as np
 from scipy.sparse import csr_matrix
@@ -8,18 +8,14 @@ class LabelPropagation:
     def __init__(
         self,
         faiss_index: faiss.Index,
-        n_neighbors: int = 10,
-        sigma: float = 1.0,
-        alpha: float = 0.99,
-        max_iter: int = 100,
-        tol: float = 1e-3,
+        config: LabelPropagationConfig = config_factory(LabelPropagationConfig),
     ):
         self.faiss_index = faiss_index
-        self.n_neighbors = n_neighbors
-        self.sigma = sigma
-        self.alpha = alpha
-        self.max_iter = max_iter
-        self.tol = tol
+        self.n_neighbors = config.n_neighbors
+        self.sigma = config.sigma
+        self.alpha = config.alpha
+        self.max_iter = config.max_iter
+        self.tol = config.tol
 
     def fit_predict(self, X: np.ndarray, y: np.ndarray) -> np.ndarray:
         # Step 1: Build k-NN graph

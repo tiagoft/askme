@@ -1,4 +1,4 @@
-from askme.config.config import config_factory, MakeQuestionsConfig
+from askme.config.config import config_factory, MakeQuestionsConfig, SamplingConfig
 
 def test_config_factory_default():
     cfg = config_factory(MakeQuestionsConfig)
@@ -11,3 +11,7 @@ def test_config_factory_default():
     assert cfg.max_words_per_text == 350
     assert cfg.retries == 10
     assert cfg.blacklist == []
+    
+def test_config_factory_override():
+    cfg = config_factory(SamplingConfig, override_data="NLISamplingConfig")
+    assert cfg.n_select == 0.1
