@@ -19,7 +19,7 @@ def config_factory(
 class MakeQuestionsConfig(BaseModel):
     """Configuration for making questions."""
 
-    model_name: str = "gpt-4"
+    model_name: str = "gpt-oss:20b"
     temperature: float = 0.7
     max_tokens: int = 150
     top_p: float = 1.0

@@ -9,7 +9,7 @@ import faiss
 import numpy as np
 from tqdm import tqdm
 
-from askme.config.config import NLIBatchingChukingConfig, SamplingConfiguration, config_factory
+from askme.config.config import MakeQuestionsConfig, NLIBatchingChukingConfig, SamplingConfiguration, config_factory
 from .nli import NLIWithChunkingAndPooling
 
 from ..askquestions import check_entailment, models
@@ -79,6 +79,8 @@ class RTPBuilder:
         selection_strategy: Union['kmeans', 'random', 'votek'] = 'kmeans',
         nli_selection_strategy: Union['kmeans', 'random', 'votek'] = 'kmeans',
         nli_batched: bool = True,
+        llm_model_config: MakeQuestionsConfig = config_factory(
+            MakeQuestionsConfig),
         nli_config: NLIBatchingChukingConfig = config_factory(
             NLIBatchingChukingConfig),
         nli_sampler_config: SamplingConfiguration = config_factory(
@@ -134,10 +136,10 @@ class RTPBuilder:
         self.nli_batch_size = nli_batch_size
         self.nli_batched = nli_batched
         self.nli_selection_strategy = nli_selection_strategy
-
-        self.llm_sampler = sampler_factory(llm_sampler_config)
-        self.nli_sampler = sampler_factory(nli_sampler_config)
-
+        self.nli_sampler_config = nli_sampler_config
+        self.llm_sampler_config = llm_sampler_config
+        self.llm_model_config = llm_model_config
+        
         # Determine device
         device = 'cuda' if use_gpu else 'cpu'
 
@@ -228,58 +230,21 @@ class RTPBuilder:
         metrics.faiss_search_time_ms = (time.time() - faiss_start) * 1000
 
         # Step 2: Get medoids via k-means for hypothesis generation
-
         t_initial_medoid = time.time()
         if self.verbose:
             print(
                 f"Selecting {self.n_medoids} elements for hypothesis generation..."
             )
-        medoid_indices = self.llm_sampler(
+        llm_sampler = sampler_factory(self.llm_sampler_config)
+        medoid_indices = llm_sampler(
             faiss_index=faiss_index,
             X=np.array(embeddings),
         )
         medoids = [text_collection[idx] for idx in medoid_indices]
-        # if self.selection_strategy == 'random':
-        #     if self.verbose:
-        #         print("Selecting elements via random selection...")
-
-        #     medoid_indices = select_n_random_indices(
-        #         total_size=len(text_collection),
-        #         n_select=min(self.n_medoids, len(text_collection)),
-        #         seed=1234,
-        #     )
-        #     medoids = [text_collection[idx] for idx in medoid_indices]
-        # elif self.selection_strategy == 'kmeans':
-        #     if self.verbose:
-        #         print("Selecting medoids via k-means...")
-
-        #     n_clusters = min(self.n_medoids, len(text_collection))
-        #     medoid_indices = kmeans_with_faiss(
-        #         faiss_index=faiss_index,
-        #         X=embeddings,
-        #         n_clusters=n_clusters,
-        #     )
-
-        #     medoids = [text_collection[idx] for idx in medoid_indices]
-        # elif self.selection_strategy == 'votek':
-        #     if self.verbose:
-        #         print("Selecting elements via vote-k sampling...")
-
-        #     n_clusters = min(self.n_medoids, len(text_collection))
-        #     medoid_indices = vote_k_sampling(
-        #         faiss_index,
-        #         embeddings,
-        #         n_clusters=n_clusters,
-        #         k_neighbors=30,
-        #     )
-        #     medoids = [text_collection[idx] for idx in medoid_indices]
-
         metrics.medoid_selection_time_ms = (time.time() -
                                             t_initial_medoid) * 1000
         if self.verbose:
             print(f"Medoid indices: {medoid_indices}")
-
-        #            print(f"Medoids: {medoids}")
 
         # Retry loop for generating a good question
         # The loop attempts to generate a question that leads to an acceptable split ratio
@@ -303,12 +268,9 @@ class RTPBuilder:
             # Step 3: Generate hypothesis using LLM
             llm_start = time.time()
             try:
-                response = makequestion.make_a_question_about_collection(
-                    collection=medoids,
-                    model=self.llm_model,
-                    retries=15,
-                    blacklist=blacklist,
-                )
+                self.llm_model_config.blacklist = blacklist
+                question_asker = makequestion.QuestionMaker(config=self.llm_model_config)
+                response=question_asker(collection=medoids)
             except:
                 print("LLM call failed during hypothesis generation.")
                 print("Returning leaf node with all documents.")
@@ -320,7 +282,8 @@ class RTPBuilder:
                     metrics.success = False
                     return root, metrics
                 return root
-                # Track LLM tokens
+            
+            # Track LLM tokens
             metrics.llm_input_tokens += response.usage().input_tokens
             metrics.llm_output_tokens += response.usage().output_tokens
             hypothesis = response.output.hypothesis
@@ -329,10 +292,9 @@ class RTPBuilder:
                 print(f"Generated hypothesis: {hypothesis}")
 
             # Step 4: Use NLI to answer the question for selected documents
-
             t_initial_kmeans = time.time()
             if self.n_documents_to_answer == 'same':
-                n_docs_to_label = n_clusters
+                n_docs_to_label = len(medoid_indices)
                 doc_indices = medoid_indices
             elif self.n_documents_to_answer == 'all':
                 doc_indices = list(range(len(text_collection)))
@@ -345,93 +307,42 @@ class RTPBuilder:
                     n_docs_to_label = int(self.n_documents_to_answer)
                 n_docs_to_label = min(n_docs_to_label, len(text_collection))
 
-                if self.nli_selection_strategy == 'random':
-                    if self.verbose:
-                        print(
-                            "Selecting documents to label via random selection..."
-                        )
-                    doc_indices = select_n_random_indices(
-                        total_size=len(text_collection),
-                        n_select=n_docs_to_label,
-                        seed=1234 + attempt,
-                    )
-                elif self.nli_selection_strategy == 'votek':
-                    if self.verbose:
-                        print(
-                            "Selecting documents to label via vote-k sampling..."
-                        )
-                    doc_indices = vote_k_sampling(
-                        faiss_index,
-                        embeddings,
-                        n_clusters=n_docs_to_label,
-                        k_neighbors=30,
-                    )
-                else:  # Default to kmeans
-                    print("Finding documents to label via k-means...")
-                    doc_indices = kmeans_with_faiss(
-                        faiss_index=faiss_index,
-                        X=embeddings,
-                        n_clusters=n_docs_to_label,
-                    )
+            nli_sampler_config = self.nli_sampler_config
+            nli_sampler_config.n_select = n_docs_to_label
+            nli_sampler = sampler_factory(nli_sampler_config)
+            doc_indices = nli_sampler(
+                faiss_index=faiss_index,
+                X=np.array(embeddings),
+            )
 
             metrics.kmeans_time_ms += (time.time() - t_initial_kmeans) * 1000
-
-            # doc_indices = true_k_medoids_faiss(embeddings=embeddings,
-            #                                    n_clusters=n_docs_to_label,
-            #                                    nredo=5,
-            #                                    seed=1234,
-            #                                    max_docs=10000)
 
             # Initialize labels as unlabeled (-1)
             answers = -np.ones((len(text_collection), ), dtype=object)
 
-            device = 'cuda' if self.use_gpu else 'cpu'
             nli_confidences = []
             nli_start = time.time()
-
-            # Unbatched NLI calls to allow progress bar
-            if self.nli_batched is False:
-                for doc_index in tqdm(doc_indices):
-                    document = text_collection[doc_index]
-                    pooled_results = check_entailment.pool_nli_scores(
-                        check_fn=check_entailment.check_entailment_nli,
-                        premise=document,
-                        hypothesis=hypothesis,
-                        chunk_size=200,
-                        overlap=20,
-                        model=self.nli_model,
-                        tokenizer=self.nli_tokenizer,
-                        device=device,
-                    )
-                    entails, entailment_score, contradiction_score, P_entailment = pooled_results
-                    answers[doc_index] = 1 if entails else 0
-                    nli_confidences.append(P_entailment)
-                    metrics.nli_calls += 1
-
             # Batched NLI
-            else:
-                if self.verbose:
-                    print("Using batched NLI calls...")
+            if self.verbose:
+                print("Using batched NLI calls...")
 
-                premises = [
-                    text_collection[doc_index] for doc_index in doc_indices
-                ]
-                batched_results = self.nli_batching_model(
-                    premise=premises,
-                    hypothesis=hypothesis,
-                )
-                if self.verbose:
-                    print(f"Text premises: {len(premises)}")
-                    print(
-                        f"Batched NLI returned {len(batched_results)} results."
-                    )
+            premises = [
+                text_collection[doc_index] for doc_index in doc_indices
+            ]
+            batched_results = self.nli_batching_model(
+                premise=premises,
+                hypothesis=hypothesis,
+            )
+            if self.verbose:
+                print(f"Text premises: {len(premises)}")
+                print(f"Batched NLI returned {len(batched_results)} results.")
 
-                for i, doc_index in enumerate(doc_indices):
-                    entails, entailment_score, contradiction_score, P_entailment = batched_results[
-                        i]
-                    answers[doc_index] = 1 if entails else 0
-                    nli_confidences.append(P_entailment)
-                    metrics.nli_calls += 1
+            for i, doc_index in enumerate(doc_indices):
+                entails, entailment_score, contradiction_score, P_entailment = batched_results[
+                    i]
+                answers[doc_index] = 1 if entails else 0
+                nli_confidences.append(P_entailment)
+                metrics.nli_calls += 1
 
             metrics.nli_time_ms += (time.time() - nli_start) * 1000
 
