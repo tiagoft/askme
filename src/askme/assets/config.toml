@@ -18,7 +18,7 @@ max_characters_per_chunk = 2000 # Maximum number of characters per chunk (avoids
 device = 'auto' # auto = gpu if available, else cpu
 label_names=["entailment", "neutral", "contradiction"] # Order of labels (depends on the model)
 
-[SamplingConfiguration]
+[SamplingConfig]
 selection_strategy = "kmeans"  # e.g., 'random', 'vote_k', 'kmeans'
 n_select = 14
 k_neighbors = 30 # Number of neighbors for VoteKSampler
@@ -26,3 +26,9 @@ seed = 42
 use_gpu = true # Use GPU foi FAISS kmeans
 niter = 50
 spherical = true
+
+[TextEmbeddingConfig]
+model_name = "sentence-transformers/all-mpnet-base-v2"
+device = "auto"  # 'auto', 'cpu', or 'cuda'
+chunk_size = 100
+overlap = 25

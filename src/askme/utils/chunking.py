@@ -59,8 +59,8 @@ def chunk_text(
 class TextEmbeddingWithChunker:
     def __init__(self,
                  model_name: str,
-                 chunk_size: int = 350,
-                 overlap: int = 50,
+                 chunk_size: int = 100,
+                 overlap: int = 25,
                  pooling_fn: callable = np.mean,
                  device: str = 'cpu'):
 

@@ -1,7 +1,7 @@
 import numpy as np
 import faiss
 from collections import defaultdict
-from askme.config.config import SamplingConfiguration, config_factory
+from askme.config.config import SamplingConfig, config_factory
 
 
 
@@ -17,7 +17,7 @@ class Sampler:
         raise NotImplementedError
 
 def sampler_factory(
-    config: SamplingConfiguration = config_factory(SamplingConfiguration),
+    config: SamplingConfig = config_factory(SamplingConfig),
 ) -> Sampler:
     """Factory function to create a sampler based on the sampler name."""
     sampler_name = config.selection_strategy
@@ -35,7 +35,7 @@ class RandomSampler(Sampler):
 
     def __init__(
         self,
-        config: SamplingConfiguration = config_factory(SamplingConfiguration),
+        config: SamplingConfig = config_factory(SamplingConfig),
     ):
         self.total_size = config.total_size
         self.n_select = config.n_select
@@ -57,7 +57,7 @@ class VoteKSampler(Sampler):
 
     def __init__(
         self,
-        config: SamplingConfiguration = config_factory(SamplingConfiguration),
+        config: SamplingConfig = config_factory(SamplingConfig),
     ):
         self.n_clusters = config.n_select
         self.k_neighbors = config.k_neighbors
@@ -76,7 +76,7 @@ class KMeansSampler(Sampler):
     def __init__(
         self,
         
-        config: SamplingConfiguration = config_factory(SamplingConfiguration)
+        config: SamplingConfig = config_factory(SamplingConfig)
     ):
         self.n_clusters = config.n_select
         self.use_gpu = config.use_gpu

@@ -29,6 +29,13 @@ class MakeQuestionsConfig(BaseModel):
     retries: int = 10
     blacklist: Optional[list[str]] = []
 
+class TextEmbeddingConfig(BaseModel):
+    """Configuration for text embedding model."""
+    model_name: str = "sentence-transformers/all-mpnet-base-v2"
+    device: str = "auto"  # 'auto', 'cpu', or 'cuda'
+    chunk_size: int = 100
+    overlap: int = 25
+
 class NLIBatchingChukingConfig(BaseModel):
     """Configuration for NLI batching and chunking."""
 
@@ -41,7 +48,7 @@ class NLIBatchingChukingConfig(BaseModel):
     max_chunks_per_minibatch: int = 64
     max_characters_per_chunk: int = 10000
     
-class SamplingConfiguration(BaseModel):
+class SamplingConfig(BaseModel):
     """Configuration for sampling strategies."""
     selection_strategy: str = "vote_k"  # e.g., 'random', 'vote_k', 'kmeans'
     n_select: int = 10

@@ -9,7 +9,7 @@ import faiss
 import numpy as np
 from tqdm import tqdm
 
-from askme.config.config import MakeQuestionsConfig, NLIBatchingChukingConfig, SamplingConfiguration, config_factory
+from askme.config.config import MakeQuestionsConfig, NLIBatchingChukingConfig, SamplingConfig, config_factory
 from .nli import NLIWithChunkingAndPooling
 
 from ..askquestions import check_entailment, models
@@ -83,10 +83,10 @@ class RTPBuilder:
             MakeQuestionsConfig),
         nli_config: NLIBatchingChukingConfig = config_factory(
             NLIBatchingChukingConfig),
-        nli_sampler_config: SamplingConfiguration = config_factory(
-            SamplingConfiguration),
-        llm_sampler_config: SamplingConfiguration = config_factory(
-            SamplingConfiguration),
+        nli_sampler_config: SamplingConfig = config_factory(
+            SamplingConfig),
+        llm_sampler_config: SamplingConfig = config_factory(
+            SamplingConfig),
     ):
         """
         Initialize the RTPBuilder with all necessary models.
@@ -117,11 +117,6 @@ class RTPBuilder:
         """
         self.use_gpu = use_gpu
         self.embedding_model_name = embedding_model_name
-        self.nli_model_name = nli_model_name
-        self.llm_model_name = llm_model_name
-        self.chunk_size = chunk_size
-        self.chunk_overlap = overlap
-        self.overlap = overlap
         self.n_medoids = n_medoids
         self.n_documents_to_answer = n_documents_to_answer
         self.knn_neighbors = knn_neighbors
