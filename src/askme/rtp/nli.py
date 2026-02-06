@@ -11,6 +11,7 @@ from pydantic import BaseModel
 
 
 class NLIResults(BaseModel):
+    hypothesis: str
     is_entailed: bool
     entailment_score: float
     contradiction_score: float
@@ -224,6 +225,7 @@ class NLIWithChunkingAndPooling:
             Tuple of (is_entailed, entailment_score, contradiction_score, P_entailment)
             from the chunk with the highest entailment score (max-pooling)
         """
+
         assert isinstance(premise, list), "Premise must be a list of strings."
         dataset = ChunkingDataset(
             data=premise,
@@ -320,6 +322,7 @@ class NLIWithChunkingAndPooling:
             for pbin, pter in zip(P_binary, P_ternary):
                 is_entailed = pbin[0].item() > pbin[1].item()
                 result = NLIResults(
+                    hypothesis=hypothesis,
                     is_entailed=is_entailed,
                     entailment_score=pter[0].item(),
                     contradiction_score=pter[1].item(),

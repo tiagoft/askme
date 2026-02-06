@@ -6,19 +6,27 @@ app = typer.Typer()
 
 
 @app.command()
-def zeroshot(
+def basenli(
     documents: list[str],
-    hypothesis: str,
+    hypothesis: list[str] = None,
+    output_file: str | None = None,
 ):
     """
     Performs zero-shot natural language inference on the provided DOCUMENTS
     against the given HYPOTHESIS.
     """
     from .app_nli import run_nli
+    if hypothesis is None:
+        hypothesis = "The document is relevant to the question."
+    elif isinstance(hypothesis, list) and len(hypothesis) == 1:
+        hypothesis = hypothesis[0]
     results = run_nli(documents, hypothesis)
-    for i, result in enumerate(results):
-        pprint(result.model_dump(), indent=2)       
-        
+    if output_file is None:
+        for i, result in enumerate(results):
+            pprint(result.model_dump(), indent=2)       
+    else:
+        with open(output_file, 'w') as f:
+            json.dump([result.model_dump() for result in results], f, indent=2)        
 
 
 @app.command()
