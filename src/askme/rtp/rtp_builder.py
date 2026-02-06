@@ -2,7 +2,7 @@
 
 import time
 from collections.abc import Iterable
-from pathlib import Path
+
 from typing import Optional, Union
 
 import faiss
@@ -18,12 +18,9 @@ from askme.config.config import (MakeQuestionsConfig,
 
 from .nli import NLIWithChunkingAndPooling
 
-from ..askquestions import check_entailment, models
-from ..makequestions import api, makequestion
-from ..utils import (TextEmbeddingWithChunker, kmeans_with_faiss,
-                     select_n_random_indices, vote_k_sampling, sampler_factory)
-from .label_propagation import (make_knn_graph, propagate_labels,
-                                sparse_affinity, LabelPropagation)
+from ..makequestions import makequestion
+from ..utils import (TextEmbeddingWithChunker, sampler_factory)
+from .label_propagation import (LabelPropagation)
 from .make_collection_index import make_faiss_index
 from .tree_models import SplitMetrics, TreeNode
 

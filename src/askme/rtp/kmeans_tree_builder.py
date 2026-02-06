@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 from askme.utils import NLIWithChunkingAndPooling
 
-from ..askquestions import check_entailment, models
+from ..askquestions import models
 from ..makequestions import api, makequestion
 from ..utils import (TextEmbeddingWithChunker, kmeans_with_faiss,
                      select_n_random_indices, vote_k_sampling)

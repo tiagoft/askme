@@ -10,23 +10,3 @@ def make_ollama_model(model_name = 'llama3.1:8b') -> OpenAIChatModel:
     )
     return model
 
-
-def make_nli_model(model_name = 'MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7') -> tuple[any, any]:
-    model = AutoModelForSequenceClassification.from_pretrained(model_name)
-    tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
-    return model, tokenizer
-
-def make_nli_pipeline(model_name = 'MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7',
-                      use_cuda : bool = False) -> tuple[any, any]:
-    if use_cuda and torch.cuda.is_available():
-        device = 0
-    else:
-        device = -1
-    pipe = pipeline(
-        "text-classification",
-        model=model_name,
-        tokenizer=model_name,
-        device=device,
-        return_all_scores=True,
-    )
-    return pipe

@@ -6,7 +6,8 @@ from pydantic_ai import Agent
 
 class HelloWorldResponse(BaseModel):
     message: str
-
+    
+@pytest.mark.llm
 def test_hello_world():
     model = api.make_gemini_model()
     prompt = "Respond with 'Hello, World!'"
