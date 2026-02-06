@@ -1,5 +1,19 @@
 
 
+### Answer questions about a text
+
+#### Basic usage
+```python
+from askme.rtp.nli import NLIWithChunkingAndPooling
+nli_model = nli.NLIWithChunkingAndPooling()
+premises = ["The sky is blue.", "Grass is green", "It was a dark night"]
+hypothesis = "The sky is clear and blue."
+results = nli_model(premises, hypothesis)
+print(results)
+```
+
+
+
 ### Make a question about a collection
 
 #### Basic usage
