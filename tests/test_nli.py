@@ -14,8 +14,4 @@ def test_nli_operation():
     results = nli_model(premises, hypothesis)
     assert isinstance(results, list)
     for result in results:
-        is_entailed, entailment_score, contradiction_score, p_entailment = result
-        assert isinstance(is_entailed, bool)
-        assert isinstance(entailment_score, float)
-        assert isinstance(contradiction_score, float)
-        assert isinstance(p_entailment, float)
+        assert isinstance(result, nli.NLIResults)

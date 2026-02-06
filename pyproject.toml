@@ -49,4 +49,7 @@ markers = [
 addopts = "-m 'not (gpu or llm)'"
 filterwarnings = [
     "ignore::DeprecationWarning:opentelemetry.*",
+    "ignore:.*U.*mode is deprecated:DeprecationWarning",
+    "ignore:builtin type SwigPyPacked has no __module__ attribute:DeprecationWarning",
+    "ignore:builtin type SwigPyObject has no __module__ attribute:DeprecationWarning",
 ]

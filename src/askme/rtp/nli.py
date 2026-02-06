@@ -7,6 +7,21 @@ import numpy as np
 import pickle
 from tqdm import tqdm
 import re
+from pydantic import BaseModel
+
+
+class NLIResults(BaseModel):
+    is_entailed: bool
+    entailment_score: float
+    contradiction_score: float
+    neutral_score: float
+    P_entailment_binary: float
+    P_contradiction_binary: float
+    P_entailment_ternary: float
+    P_contradiction_ternary: float
+    P_neutral_ternary: float
+    entropy_binary: float
+    entropy_ternary: float
 
 
 def chunk_text(
@@ -166,10 +181,11 @@ def _pool(logits, boundaries, label_idx):
 class NLIWithChunkingAndPooling:
 
     def __init__(
-            self,
-            chunk_fn: callable = chunk_text,
-            disable_tqdm: bool = False,
-            config: NLIBatchingChukingConfig = config_factory(NLIBatchingChukingConfig),
+        self,
+        chunk_fn: callable = chunk_text,
+        disable_tqdm: bool = False,
+        config: NLIBatchingChukingConfig = config_factory(
+            NLIBatchingChukingConfig),
     ):
         self.model_name = config.model_name
         self.chunk_size = config.chunk_size
@@ -196,7 +212,7 @@ class NLIWithChunkingAndPooling:
         premise: list[str],
         hypothesis: str,
         **kwargs,
-    ) -> list[tuple[bool, float, float, float]]:
+    ) -> list[NLIResults]:
         """
         Check entailment between premise and hypothesis using chunking and max-pooling.
         
@@ -209,12 +225,13 @@ class NLIWithChunkingAndPooling:
             from the chunk with the highest entailment score (max-pooling)
         """
         assert isinstance(premise, list), "Premise must be a list of strings."
-        dataset = ChunkingDataset(data=premise,
-                                  chunk_fn=lambda text: self.chunk_fn(
-                                      text,
-                                      chunk_size=self.chunk_size,
-                                      overlap=self.overlap,
-                                      max_characters=self.max_characters_per_chunk))
+        dataset = ChunkingDataset(
+            data=premise,
+            chunk_fn=lambda text: self.chunk_fn(text,
+                                                chunk_size=self.chunk_size,
+                                                overlap=self.overlap,
+                                                max_characters=self.
+                                                max_characters_per_chunk))
         loader = DataLoader(
             dataset,
             batch_size=self.batch_size,
@@ -249,10 +266,9 @@ class NLIWithChunkingAndPooling:
             }
             inputs = model_inputs
 
-
             logits_list = []
             for start_idx in range(0, len(data['chunks']),
-                                    self.max_chunks_per_minibatch):
+                                   self.max_chunks_per_minibatch):
                 end_idx = start_idx + self.max_chunks_per_minibatch
                 minibatch_inputs = {
                     k: v[start_idx:end_idx]
@@ -280,18 +296,42 @@ class NLIWithChunkingAndPooling:
                 label_idx=self.label_names.index("contradiction"),
             )
 
-            P_entailment = [
-                torch.softmax(torch.tensor([e, c]), dim=0)[0].item()
-                for e, c in zip(entailment_scores, contradiction_scores)
+            neutral_scores = _pool(
+                logits,
+                boundaries,
+                label_idx=self.label_names.index("neutral"),
+            )
+
+            P_binary = [
+                torch.softmax(torch.tensor([e, c]), dim=0) for e, c in zip(
+                    entailment_scores,
+                    contradiction_scores,
+                )
+            ]
+            P_ternary = [
+                torch.softmax(torch.tensor([e, c, n]), dim=0)
+                for e, c, n in zip(
+                    entailment_scores,
+                    contradiction_scores,
+                    neutral_scores,
+                )
             ]
 
-            results = []
-            for e_score, c_score, p_e in zip(entailment_scores,
-                                             contradiction_scores,
-                                             P_entailment):
-                is_entailed = e_score > c_score
-                results.append((is_entailed, e_score, c_score, p_e))
-
-            all_results.extend(results)
+            for pbin, pter in zip(P_binary, P_ternary):
+                is_entailed = pbin[0].item() > pbin[1].item()
+                result = NLIResults(
+                    is_entailed=is_entailed,
+                    entailment_score=pter[0].item(),
+                    contradiction_score=pter[1].item(),
+                    neutral_score=pter[2].item(),
+                    P_entailment_binary=pbin[0].item(),
+                    P_contradiction_binary=pbin[1].item(),
+                    P_entailment_ternary=pter[0].item(),
+                    P_contradiction_ternary=pter[1].item(),
+                    P_neutral_ternary=pter[2].item(),
+                    entropy_binary=-torch.sum(pbin * torch.log2(pbin + 1e-10)).item(),
+                    entropy_ternary=-torch.sum(pter * torch.log2(pter + 1e-10)).item(),
+                )
+                all_results.append(result)
 
         return all_results

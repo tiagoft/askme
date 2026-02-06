@@ -1,15 +1,24 @@
 import typer
 import json
+from pprint import pprint
 
 app = typer.Typer()
 
 
 @app.command()
-def ask_question(phrase: str, model_name: str = 'llama3.1:8b'):
+def zeroshot(
+    documents: list[str],
+    hypothesis: str,
+):
     """
-    Prints whether the given PHRASE is a yes/no question.
+    Performs zero-shot natural language inference on the provided DOCUMENTS
+    against the given HYPOTHESIS.
     """
-    pass
+    from .app_nli import run_nli
+    results = run_nli(documents, hypothesis)
+    for i, result in enumerate(results):
+        pprint(result.model_dump(), indent=2)       
+        
 
 
 @app.command()
