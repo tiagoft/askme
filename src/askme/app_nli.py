@@ -19,11 +19,11 @@ def run_nli_on_single_doc(
 def run_nli_on_files(
     text_paths: list[str],
     hypotheses: list[str] | str,
-):
+) -> list[DocumentEntailmentResult]:
+    print(f"Running NLI on files: {text_paths} with hypotheses: {hypotheses}")
     if isinstance(hypotheses, str):
         hypotheses = [hypotheses]
-    elif len(hypotheses) != len(text_paths):
-        raise ValueError("Length of hypotheses must match length of text_paths.")
+
     
     nli_model = NLIWithChunkingAndPooling()
     documents = []
@@ -35,7 +35,16 @@ def run_nli_on_files(
                 document = f.read()
         documents.append(document)
     
-
+    print(f"Documents loaded: {len(documents)}")
+    all_results = []
+    for hypothesis in hypotheses:
+        results = nli_model(documents, hypothesis)
+        for idx, r in enumerate(results):
+            all_results.append(DocumentEntailmentResult(
+                filename=text_paths[idx],
+                hypothesis=hypothesis,
+                results=r
+            ))
     
     return all_results
     

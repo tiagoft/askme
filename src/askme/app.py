@@ -1,7 +1,7 @@
 import typer
 import json
 from pprint import pprint
-from .app_nli import run_nli_on_files, run_nli_on_single_doc
+
 app = typer.Typer()
 
 @app.command()
@@ -9,6 +9,7 @@ def nlidemo(
     premise: str,
     hypothesis: str,
 ):
+    from .app_nli import run_nli_on_single_doc
     """
     Performs zero-shot natural language inference on the provided PREMISE
     against the given HYPOTHESIS.
@@ -22,6 +23,7 @@ def basenli(
     hypothesis: list[str] = None,
     output_file: str | None = None,
 ):
+    from .app_nli import run_nli_on_files
     """
     Performs zero-shot natural language inference on the provided DOCUMENTS
     against the given HYPOTHESIS.
