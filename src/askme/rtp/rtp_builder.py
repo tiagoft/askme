@@ -294,8 +294,10 @@ class RTPBuilder:
                 print(f"Batched NLI returned {len(batched_results)} results.")
 
             for i, doc_index in enumerate(doc_indices):
-                entails, entailment_score, contradiction_score, P_entailment = batched_results[
+                nli_results = batched_results[
                     i]
+                entails = nli_results.P_entailment_binary > 0.5
+                P_entailment = nli_results.P_entailment_binary
                 answers[doc_index] = 1 if entails else 0
                 nli_confidences.append(P_entailment)
                 metrics.nli_calls += 1
