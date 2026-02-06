@@ -7,8 +7,16 @@ class DocumentEntailmentResult(BaseModel):
     filename: str
     hypothesis: str
     results: NLIResults
-    
-def run_nli(
+
+def run_nli_on_single_doc(
+    document: str,
+    hypothesis: str,
+):
+    nli_model = NLIWithChunkingAndPooling()
+    results = nli_model([document], hypothesis)
+    return results[0]
+
+def run_nli_on_files(
     text_paths: list[str],
     hypotheses: list[str] | str,
 ):
@@ -27,16 +35,7 @@ def run_nli(
                 document = f.read()
         documents.append(document)
     
-    all_results = []
-    for hypothesis in hypotheses:
-        print(f"Running NLI for hypothesis: {hypothesis}")
-        results = nli_model(documents, hypothesis)
-        for doc_path, result in zip(text_paths, results):
-            all_results.append(DocumentEntailmentResult(
-                filename=doc_path,
-                hypothesis=hypothesis,
-                results=result,
-            ))
+
     
     return all_results
     

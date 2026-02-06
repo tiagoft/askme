@@ -1,9 +1,20 @@
 import typer
 import json
 from pprint import pprint
-
+from .app_nli import run_nli_on_files, run_nli_on_single_doc
 app = typer.Typer()
 
+@app.command()
+def nlidemo(
+    premise: str,
+    hypothesis: str,
+):
+    """
+    Performs zero-shot natural language inference on the provided PREMISE
+    against the given HYPOTHESIS.
+    """
+    result = run_nli_on_single_doc(premise, hypothesis)
+    pprint(result.model_dump(), indent=2)
 
 @app.command()
 def basenli(
@@ -15,12 +26,12 @@ def basenli(
     Performs zero-shot natural language inference on the provided DOCUMENTS
     against the given HYPOTHESIS.
     """
-    from .app_nli import run_nli
+    
     if hypothesis is None:
         hypothesis = "The document is relevant to the question."
     elif isinstance(hypothesis, list) and len(hypothesis) == 1:
         hypothesis = hypothesis[0]
-    results = run_nli(documents, hypothesis)
+    results = run_nli_on_files(documents, hypothesis)
     if output_file is None:
         for i, result in enumerate(results):
             pprint(result.model_dump(), indent=2)       
