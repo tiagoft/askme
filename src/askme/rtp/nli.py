@@ -23,6 +23,7 @@ class NLIResults(BaseModel):
     P_neutral_ternary: float
     entropy_binary: float
     entropy_ternary: float
+    config: NLIBatchingChukingConfig | None = None
 
 
 def chunk_text(
@@ -188,6 +189,7 @@ class NLIWithChunkingAndPooling:
         config: NLIBatchingChukingConfig = config_factory(
             NLIBatchingChukingConfig),
     ):
+        self.config = config
         self.model_name = config.model_name
         self.chunk_size = config.chunk_size
         self.overlap = config.overlap
@@ -334,6 +336,7 @@ class NLIWithChunkingAndPooling:
                     P_neutral_ternary=pter[2].item(),
                     entropy_binary=-torch.sum(pbin * torch.log2(pbin + 1e-10)).item(),
                     entropy_ternary=-torch.sum(pter * torch.log2(pter + 1e-10)).item(),
+                    config = self.config,
                 )
                 all_results.append(result)
 
