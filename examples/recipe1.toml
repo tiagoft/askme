@@ -1,0 +1,10 @@
+keywords = [
+     "insper",
+     "ética",
+     "método"
+ ]
+
+regex = [
+     "(insper)\\s+instituto\\s+de\\s+ensino\\s+e\\s+pesquisa",
+     "metodo(logia)?"
+ ]

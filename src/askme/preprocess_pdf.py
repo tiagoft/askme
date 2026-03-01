@@ -49,7 +49,7 @@ def get_document(path):
         document = ""
         document_paginated = []
         started = False
-        for page in tqdm(doc):
+        for page in doc:
             #if not started and "Resumo" in page.get_text():
             #    started = True
                 

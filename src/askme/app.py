@@ -65,6 +65,30 @@ def extract_ethical_issues(
             json.dump([issue.model_dump() for issue in issues], f, indent=2)
     
 
+@app.command()
+def extract_dir_info(
+    path_to_dir: str,
+    recipe: str,
+    output_file : str | None = None,
+    n_max : int | None = None,
+):
+    """
+    Extracts ethical issues from the provided MATERIAL.
+    """
+    from .app_dataset import app_search_on_directory
+    issues = app_search_on_directory(
+        path_to_dir,
+        config_file=recipe,
+        n_max=n_max,
+    )
+    if output_file is not None:
+        with open(output_file, 'w') as f:
+            json.dump([issue.model_dump() for issue in issues], f, indent=2)
+    else:
+        for issue in issues:
+            pprint(issue.model_dump(), indent=2)
+
+
 
 @app.command()
 def goodbye(name: str = "Friend"):
