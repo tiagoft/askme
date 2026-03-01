@@ -1,8 +1,7 @@
 import torch.nn as nn
 import torch
-from askme.rtp.nli import NLIWithChunkingAndPooling
 import numpy as np
-
+from askme.rtp.nli import NLIWithChunkingAndPooling
 
 
 def logical_similarity(
