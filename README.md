@@ -80,3 +80,7 @@ texts = ['text1', 'text2', 'text3']
 result = qm(texts)
 print(result.hypothesis)
 ```
+
+### Evaluation of similarities
+
+Check [evalsim documentation](src/evalsim/README.md).
