@@ -31,6 +31,7 @@ dependencies = [
 
 [project.scripts]
 askme = "askme.app:app" # This line adds your Typer app as a command-line entry point
+evalsim = "evalsim.app:app" # This line adds your Typer app as a command-line entry point
 
 [build-system]
 requires = ["uv_build>=0.9.5,<0.10.0"]
