@@ -10,6 +10,9 @@ def logical_similarity(
     model : NLIWithChunkingAndPooling,
 ) -> float:
     """Calculate the logical similarity between two texts using a pre-trained model."""
+    if len(a)<3 or len(b)<3:
+        return 0.0
+    
     ent_ab = model([a], b)
     ent_ba = model([b], a)
     return np.sqrt(ent_ab[0].entailment_score * ent_ba[0].entailment_score)

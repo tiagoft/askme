@@ -36,7 +36,7 @@ class SimilarityCalculator:
 
         if use_logical:
             from askme.rtp.nli import NLIWithChunkingAndPooling
-            self.logical_model = NLIWithChunkingAndPooling()
+            self.logical_model = NLIWithChunkingAndPooling(disable_tqdm=True)
     
         self.max_ngram = max_ngram
         self.pooling_fn = pooling_fn

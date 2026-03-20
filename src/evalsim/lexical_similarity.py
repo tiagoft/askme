@@ -5,6 +5,7 @@ from .commons import jaccard_similarity
 
 def get_ngrams_up_to_n(text, n):
     """Get all n-grams up to n for a given text."""
+    text = str(text)
     tokens = text.split()
     ngrams = set()
     for i in range(1, n + 1):
