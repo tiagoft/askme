@@ -7,10 +7,14 @@ import numpy as np
 
 from pydantic import BaseModel
 
+class PooledResults(BaseModel):
+    mean: float
+    std: float
+
 class Similarity(BaseModel):
-    lexical: float
-    semantic: float
-    logical: float
+    lexical: PooledResults
+    semantic: PooledResults
+    logical: PooledResults
 
 class SimilarityCalculator:
     def __init__(self, 
@@ -38,15 +42,33 @@ class SimilarityCalculator:
         self.pooling_fn = pooling_fn
 
     
-    def calculate_lexical_similarity(self, texts: list[str]) -> float:
-        return self.pooling_fn(pairwise_jaccard_ngram_similarity(texts, self.max_ngram))
+    def calculate_lexical_similarity(self, texts: list[str]) -> PooledResults:
+        sim = pairwise_jaccard_ngram_similarity(texts, self.max_ngram)
+        mean = self.pooling_fn(sim[np.triu_indices_from(sim, k=1)])
+        std = np.std(sim[np.triu_indices_from(sim, k=1)])
+        return PooledResults(
+            mean=mean,
+            std=std
+        )
     
-    def calculate_semantic_similarity(self, texts: list[str]) -> float:
-        return self.pooling_fn(pairwise_cosine_similarity(texts, self.semantic_model))
+    def calculate_semantic_similarity(self, texts: list[str]) -> PooledResults:
+        sim = pairwise_cosine_similarity(texts, self.semantic_model)
+        mean = self.pooling_fn(sim[np.triu_indices_from(sim, k=1)])
+        std = np.std(sim[np.triu_indices_from(sim, k=1)])
+        return PooledResults(
+            mean=mean,
+            std=std
+        )
     
-    def calculate_logical_similarity(self, texts: list[str]) -> float:
-        return self.pooling_fn(pairwise_logical_similarity(texts, self.logical_model))
-    
+    def calculate_logical_similarity(self, texts: list[str]) -> PooledResults:
+        sim = pairwise_logical_similarity(texts, self.logical_model)
+        mean = self.pooling_fn(sim[np.triu_indices_from(sim, k=1)])
+        std = np.std(sim[np.triu_indices_from(sim, k=1)])
+        return PooledResults(
+            mean=mean,
+            std=std
+        )
+
     def calculate_similarity(self, texts: list[str]) -> Similarity:
         lexical = self.calculate_lexical_similarity(texts) if self.use_lexical else 0
         semantic = self.calculate_semantic_similarity(texts) if self.use_semantic else 0

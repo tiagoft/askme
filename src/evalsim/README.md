@@ -20,5 +20,5 @@ print(f"Logical: {similarities.logical}")
 ### Example in command line
 
 ```bash
-evalsim "This is one sentence" "This is another sentence" "This is a third sentence and so on so on"
+evalsim phrases "This is one sentence" "This is another sentence" "This is a third sentence and so on so on"
 ```
