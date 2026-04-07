@@ -26,15 +26,25 @@ class QuestionMaker:
         
     def __call__(self, collection: list[str]) -> AgentRunResult[HypothesisAboutCollection]:
         
-        return make_a_question_about_collection(
-            collection,
-            model=self.llm_model,
-            retries=self.config.retries,
-            blacklist=self.config.blacklist,
-            max_words_per_text=self.config.max_words_per_text,
-            cache_fn=self.cache_fn,
-        )
-
+        if self.config.num_questions == 1:
+            return make_a_question_about_collection(
+                collection,
+                model=self.llm_model,
+                retries=self.config.retries,
+                blacklist=self.config.blacklist,
+                max_words_per_text=self.config.max_words_per_text,
+                cache_fn=self.cache_fn,
+            )
+        else:
+            return make_many_questions_about_collection(
+                collection,
+                model=self.llm_model,
+                num_questions=self.config.num_questions,
+                retries=self.config.retries,
+                blacklist=self.config.blacklist,
+                max_words_per_text=self.config.max_words_per_text,
+                cache_fn=self.cache_fn,
+            )
 def crop_text_in_words(text: str, max_words: int) -> str:
     """Crop text to a maximum number of words."""
     words = text.split()
@@ -85,6 +95,49 @@ def make_a_question_about_split(
     
     return result
 
+def make_many_questions_about_collection(
+    collection: list[str],
+    model: openai_models.OpenAIChatModel,
+    num_questions: int = 5,
+    retries: int = 10,
+    blacklist: list[str] = [],
+    max_words_per_text: int = 350,
+    cache_fn: str | None = None,
+) -> AgentRunResult[list[HypothesisAboutCollection]]:
+    """Generate multiple hypotheses about a collection of texts."""
+    
+    system_prompt = rtp_prompts['makemanyquestions']['system_prompt'].format(num_questions=num_questions)
+    
+    cropped_collection = [crop_text_in_words(text, max_words_per_text) for text in collection]
+
+    user_prompt = f"Texts: {cropped_collection}\nGenerate {num_questions} distinct hypotheses about the above texts."
+    if blacklist is not None and len(blacklist) > 0:
+        user_prompt += f"\nAvoid the following topics: {blacklist}\n"
+
+    if cache_fn is not None:
+        prompt_hash = hash((system_prompt, user_prompt))
+        cache = shelve.open(cache_fn)
+        if prompt_hash in cache:
+            cached_result = cache[prompt_hash]
+            cache.close()
+            return cached_result
+
+    agent = Agent(
+        model,
+        output_type=list[HypothesisAboutCollection],
+        retries=retries,
+        instructions=system_prompt,
+    )
+    try:
+        result = agent.run_sync(user_prompt)
+        if cache_fn is not None:
+            cache = shelve.open(cache_fn)
+            cache[prompt_hash] = result
+            cache.close()
+    except UnexpectedModelBehavior as e:
+        raise e
+    
+    return result
 
 def make_a_question_about_collection(
     collection: list[str],

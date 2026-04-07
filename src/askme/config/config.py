@@ -41,6 +41,7 @@ class MakeQuestionsConfig(BaseModel):
     retries: int = 10
     blacklist: Optional[list[str]] = []
     cache: str = "./make_questions_cache.cache"
+    num_questions: int = 1
 
 class TextEmbeddingConfig(BaseModel):
     """Configuration for text embedding model."""
