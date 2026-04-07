@@ -64,6 +64,30 @@ def extract_ethical_issues(
         with open(output_file, 'w') as f:
             json.dump([issue.model_dump() for issue in issues], f, indent=2)
     
+@app.command()
+def extract_from_table(
+    path_to_table: str,
+    input_column: str,
+    recipe: str,
+    output_file : str | None = None,
+    n_max : int | None = None,
+):
+    """
+    Extracts ethical issues from the provided MATERIAL.
+    """
+    from .app_dataset import app_search_on_table
+    issues = app_search_on_table(
+        path_to_table,
+        input_column,
+        config_file=recipe,
+        n_max=n_max,
+    )
+    if output_file is not None:
+        with open(output_file, 'w') as f:
+            json.dump([issue.model_dump() for issue in issues], f, indent=2)
+    else:
+        for issue in issues:
+            pprint(issue.model_dump(), indent=2)
 
 @app.command()
 def extract_dir_info(
