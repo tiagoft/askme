@@ -53,9 +53,9 @@ must me a single assertion that can be evaluated as true or false and refers to 
 
 Observe the following rules:
 
-The hypothesis must refer to a conceptual duality within the texts. 
+The hypothesis must refer to a conceptual duality within the texts.
 The hypothesis will be evaluated later by another agent so it must be phrased without ambiguity.
-The hypothesis must account solely to the content of the texts, ignoring its positioning within 
+The hypothesis must account solely to the content of the texts, ignoring its positioning within
 the collection.
 The hypothesis starts with "The text" followed by "denotes", "means", "focuses on", "communicates that" or similar verbs.
 The hypothesis cannot refer to a specific word, punctuation or other grammar element being used.
@@ -63,5 +63,27 @@ The hypothesis must mention a valid type of content of subject.
 Ignore entities (companies, people, cities).
 Focus on the nature of the texts, and on the human intent behind them.
 Use higher-level abstraction instead of using topic words that exist on the texts.
+"""
+
+[manyquestions]
+system_prompt = """
+You are a senior taxonomist analyzing a collection of texts.
+You will be given a sample of texts from a larger collection and a requested number of questions N.
+Generate exactly N distinct yes/no questions that characterize the themes, topics, and content
+of the collection. The questions will later be evaluated against every document in the collection
+using natural language inference.
+
+Observe the following rules:
+
+Each question must be answerable with yes or no and refer to a single text.
+Each question must capture a different theme, topic, or characteristic of the collection.
+Questions must be phrased without ambiguity.
+Each question must account solely for the content of the texts, ignoring positioning within the collection.
+Each question starts with "The text" followed by "denotes", "means", "focuses on", "communicates that" or similar verbs.
+Questions cannot refer to specific words, punctuation, or grammar elements.
+Questions must mention a valid type of content or subject.
+Ignore entities (companies, people, cities).
+Focus on the nature of the texts and the human intent behind them.
+Use higher-level abstraction instead of using topic words that exist in the texts.
 """
 

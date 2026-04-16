@@ -97,7 +97,7 @@ def extract_dir_info(
     n_max : int | None = None,
 ):
     """
-    Extracts ethical issues from the provided MATERIAL.
+    Extracts information from the provided directory of documents according to the given RECIPE.
     """
     from .app_dataset import app_search_on_directory
     issues = app_search_on_directory(
@@ -112,6 +112,120 @@ def extract_dir_info(
         for issue in issues:
             pprint(issue.model_dump(), indent=2)
 
+
+
+@app.command()
+def generate_questions(
+    input_file: str = typer.Argument(..., help="JSON file containing a list of text strings"),
+    n_sample: int = typer.Option(10, help="Number of texts to sample for question generation"),
+    n_questions: int = typer.Option(5, help="Number of yes/no questions to generate"),
+    model_name: str = typer.Option("gpt-4o-mini", help="LLM model name"),
+    use_gpu: bool = typer.Option(False, help="Use GPU for embedding and sampling"),
+    output_file: str | None = typer.Option(None, help="Output JSON file (prints to stdout if omitted)"),
+):
+    """
+    Generate M yes/no questions about a text collection by sampling N texts and
+    prompting an LLM. The output JSON contains the questions and the indices of
+    the sampled texts that were used to generate them.
+    """
+    from .manyquestions import ManyQuestions
+    from .config.config import config_factory, MakeQuestionsConfig
+
+    with open(input_file) as f:
+        collection = json.load(f)
+
+    llm_config = config_factory(MakeQuestionsConfig)
+    llm_config.model_name = model_name
+
+    pipeline = ManyQuestions(
+        n_sample=n_sample,
+        n_questions=n_questions,
+        use_gpu=use_gpu,
+        llm_config=llm_config,
+    )
+    questions, sampled_indices = pipeline.generate(collection)
+
+    output = {"questions": questions, "sampled_indices": sampled_indices}
+    if output_file:
+        with open(output_file, "w") as f:
+            json.dump(output, f, indent=2)
+    else:
+        pprint(output, indent=2)
+
+
+@app.command()
+def answer_questions(
+    input_file: str = typer.Argument(..., help="JSON file containing a list of text strings"),
+    questions_file: str = typer.Argument(
+        ...,
+        help="JSON file with questions: either a list of strings or "
+             '{"questions": [...]} as produced by generate-questions',
+    ),
+    output_file: str | None = typer.Option(None, help="Output JSON file (prints to stdout if omitted)"),
+):
+    """
+    Answer yes/no questions across a text collection using NLI.
+    Produces per-document entailment scores for each question.
+    """
+    from .manyquestions import CollectionAnswerer
+
+    with open(input_file) as f:
+        collection = json.load(f)
+    with open(questions_file) as f:
+        questions_data = json.load(f)
+
+    if isinstance(questions_data, dict):
+        questions = questions_data["questions"]
+    else:
+        questions = questions_data
+
+    answerer = CollectionAnswerer()
+    results = answerer(collection=collection, questions=questions)
+
+    output = [r.model_dump() for r in results]
+    if output_file:
+        with open(output_file, "w") as f:
+            json.dump(output, f, indent=2)
+    else:
+        pprint(output, indent=2)
+
+
+@app.command()
+def manyquestions(
+    input_file: str = typer.Argument(..., help="JSON file containing a list of text strings"),
+    n_sample: int = typer.Option(10, help="Number of texts to sample for question generation"),
+    n_questions: int = typer.Option(5, help="Number of yes/no questions to generate"),
+    model_name: str = typer.Option("gpt-4o-mini", help="LLM model name"),
+    use_gpu: bool = typer.Option(False, help="Use GPU for embedding and sampling"),
+    output_file: str | None = typer.Option(None, help="Output JSON file (prints to stdout if omitted)"),
+):
+    """
+    End-to-end pipeline: sample N texts, generate M yes/no questions via LLM,
+    then answer all questions across the full collection using NLI.
+    """
+    from .manyquestions import ManyQuestions
+    from .config.config import config_factory, MakeQuestionsConfig
+
+    with open(input_file) as f:
+        collection = json.load(f)
+
+    llm_config = config_factory(MakeQuestionsConfig)
+    llm_config.model_name = model_name
+
+    pipeline = ManyQuestions(
+        n_sample=n_sample,
+        n_questions=n_questions,
+        use_gpu=use_gpu,
+        llm_config=llm_config,
+    )
+    result = pipeline(collection)
+
+    output = result.model_dump()
+    if output_file:
+        with open(output_file, "w") as f:
+            json.dump(output, f, indent=2)
+    else:
+        pprint(output, indent=2)
 
 
 @app.command()
