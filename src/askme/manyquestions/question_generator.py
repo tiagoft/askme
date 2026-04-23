@@ -1,8 +1,11 @@
+import logging
 import shelve
 from pathlib import Path
 
 from pydantic import BaseModel
 from pydantic_ai import Agent, UnexpectedModelBehavior
+
+logger = logging.getLogger(__name__)
 
 from askme.assets import rtp_prompts
 from askme.config.config import MakeQuestionsConfig, config_factory
@@ -55,6 +58,7 @@ class ManyQuestionsGenerator:
             collection,
             n_questions=self.n_questions,
             model=self.llm_model,
+            model_name=self.config.model_name,
             retries=self.config.retries,
             max_words_per_text=self.config.max_words_per_text,
             cache_fn=self.cache_fn,
@@ -64,6 +68,7 @@ class ManyQuestionsGenerator:
 def make_questions_about_collection(
     collection: list[str],
     n_questions: int,
+    model_name: str,
     model,
     retries: int = 10,
     max_words_per_text: int = 350,
@@ -82,12 +87,12 @@ def make_questions_about_collection(
     Returns:
         List of yes/no question strings.
     """
-    system_prompt = rtp_prompts['manyquestions']['system_prompt']
+    system_prompt = rtp_prompts['manyquestions']['system_prompt'].format(num_questions=n_questions)
     cropped = [crop_text_in_words(t, max_words_per_text) for t in collection]
-    user_prompt = f"Generate {n_questions} questions.\n\nTexts: {cropped}"
+    user_prompt = f"\n\nTexts: {cropped}"
 
     if cache_fn is not None:
-        prompt_hash = system_prompt + user_prompt
+        prompt_hash = system_prompt + user_prompt + model_name
         cache = shelve.open(str(cache_fn))
         if prompt_hash in cache:
             cached = cache[prompt_hash]
@@ -111,4 +116,10 @@ def make_questions_about_collection(
     except UnexpectedModelBehavior as e:
         raise e
 
+    logger.info(
+        "Generated %d questions (model=%s):\n%s",
+        len(questions),
+        model_name,
+        "\n".join(f"  {i + 1}. {q}" for i, q in enumerate(questions)),
+    )
     return questions

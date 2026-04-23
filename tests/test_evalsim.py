@@ -1,7 +1,8 @@
 from evalsim.lexical_similarity import pairwise_jaccard_ngram_similarity
 from evalsim.semantic_similarity import pairwise_cosine_similarity
 from evalsim.logical_similarity import pairwise_logical_similarity
-from evalsim.functional_similarity import all_entailment_scores, pairwise_functional_similarity
+from evalsim.functional_similarity import all_entailment_scores
+from evalsim.similarities import pairwise_functional_similarity
 from askme.rtp.nli import NLIWithChunkingAndPooling
 from sentence_transformers import SentenceTransformer
 

@@ -6,10 +6,10 @@ For each combination of (LLM model, dataset, sample size), this script:
   2. Generates N_QUESTIONS yes/no questions via ManyQuestions (Ollama LLM).
   3. Answers every question across every document using NLI (inside ManyQuestions).
   4. Measures question diversity with four metrics:
-       - Lexical  : average pairwise Jaccard n-gram similarity
-       - Semantic : average pairwise cosine similarity (sentence embeddings)
-       - Logical  : average pairwise NLI entailment similarity
-       - Functional: average pairwise NMI on binary NLI answer patterns
+       - Lexical  : average pairwise Jaccard n-gram similarity (mean ± std)
+       - Semantic : average pairwise cosine similarity (mean ± std)
+       - Logical  : average pairwise NLI entailment similarity (mean ± std)
+       - Functional: average pairwise NMI on binary NLI answer patterns (mean ± std)
 
 Low scores on all four metrics = diverse, non-redundant questions.
 High functional similarity = questions that partition the collection the same way.
@@ -20,6 +20,7 @@ Usage:
     python examples/experiment_question_diversity.py
 """
 
+import logging
 import sys
 import csv
 from pathlib import Path
@@ -32,27 +33,33 @@ from datasets import load_dataset
 from askme.manyquestions import ManyQuestions
 from askme.config.config import config_factory, MakeQuestionsConfig
 from evalsim.similarities import SimilarityCalculator
-from evalsim.functional_similarity import pairwise_functional_similarity
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s — %(message)s",
+    datefmt="%H:%M:%S",
+)
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Experiment configuration — edit these variables to customise the sweep
 # ---------------------------------------------------------------------------
 
 OLLAMA_MODELS = [
-    "llama3.2",
-    "gemma3:4b",
-    "mistral",
+    #"llama3.1:8b",
+    "qwen3:14b",
+    #"gpt-oss:20b",
 ]
 
 DATASETS = [
     {"name": "ag_news",          "hf_name": "ag_news",          "split": "test",  "text_field": "text"},
-    {"name": "rotten_tomatoes",  "hf_name": "rotten_tomatoes",  "split": "test",  "text_field": "text"},
+    #{"name": "rotten_tomatoes",  "hf_name": "rotten_tomatoes",  "split": "test",  "text_field": "text"},
 ]
 
-SAMPLE_SIZES = [5, 10, 20]   # n_sample: texts fed to the LLM per run
+SAMPLE_SIZES = [5, 10, 20, 30,]   # n_sample: texts fed to the LLM per run
 
-N_QUESTIONS = 20             # yes/no questions to generate per run
-N_DOCS = 200                 # documents loaded from each dataset
+N_QUESTIONS = 50             # yes/no questions to generate per run
+N_DOCS = 10000               # documents loaded from each dataset
 OUTPUT_CSV = Path(__file__).parent / "experiment_question_diversity.csv"
 
 # ---------------------------------------------------------------------------
@@ -63,33 +70,6 @@ def load_texts(hf_name: str, split: str, text_field: str, n_docs: int) -> list[s
     ds = load_dataset(hf_name, split=split)
     n = min(n_docs, len(ds))
     return [ds[i][text_field] for i in range(n)]
-
-# ---------------------------------------------------------------------------
-# Metric computation
-# ---------------------------------------------------------------------------
-
-def compute_question_similarity(
-    questions: list[str],
-    sc: SimilarityCalculator,
-) -> dict[str, float]:
-    """Lexical, semantic, and logical similarity of the question list."""
-    sim = sc(questions)
-    return {
-        "lexical": round(float(sim.lexical), 4),
-        "semantic": round(float(sim.semantic), 4),
-        "logical": round(float(sim.logical), 4),
-    }
-
-
-def compute_functional_similarity(question_answers) -> float:
-    """NMI-based functional similarity reusing pre-computed NLI answers."""
-    scores = np.array([
-        [a.P_entailment_binary for a in qa.answers]
-        for qa in question_answers
-    ])
-    matrix = pairwise_functional_similarity(scores)
-    upper = matrix[np.triu_indices(len(matrix), k=1)]
-    return round(float(upper.mean()) if len(upper) > 0 else 0.0, 4)
 
 # ---------------------------------------------------------------------------
 # Printing helpers
@@ -123,20 +103,19 @@ def run_experiment():
     print(f"Sample sizes: {SAMPLE_SIZES}")
     print(f"N questions : {N_QUESTIONS}  |  N docs: {N_DOCS}")
 
-    # Build the question-similarity calculator once (loads NLI + embedder).
     print("\nLoading similarity models (NLI + sentence embedder)…")
     sc = SimilarityCalculator(
         use_lexical=True,
         use_semantic=True,
         use_logical=True,
-        use_functional=False,  # functional is computed from pre-computed NLI scores
+        use_functional=True,
     )
 
     results = []
     _header()
 
     for dataset_cfg in DATASETS:
-        print(f"\nLoading dataset '{dataset_cfg['name']}' ({N_DOCS} docs)…")
+        logger.info("Loading dataset '%s' (%d docs)…", dataset_cfg["name"], N_DOCS)
         collection = load_texts(
             dataset_cfg["hf_name"],
             dataset_cfg["split"],
@@ -150,18 +129,18 @@ def run_experiment():
 
             for n_sample in SAMPLE_SIZES:
                 label = f"{dataset_cfg['name']} / {model_name} / n_sample={n_sample}"
-                print(f"\n  Running: {label}")
+                logger.info("Running: %s", label)
 
                 try:
                     pipeline = ManyQuestions(
                         n_sample=n_sample,
                         n_questions=N_QUESTIONS,
-                        use_gpu=False,
+                        use_gpu=True,
                         llm_config=llm_config,
                     )
                     result = pipeline(collection)
                 except Exception as exc:
-                    print(f"  ERROR: {exc}")
+                    logger.error("FAILED [%s]: %s", label, exc)
                     rec = {
                         "dataset": dataset_cfg["name"],
                         "model": model_name,
@@ -176,27 +155,47 @@ def run_experiment():
                     _row(rec)
                     continue
 
-                q_sim = compute_question_similarity(result.questions, sc)
-                func_sim = compute_functional_similarity(result.question_answers)
+                logger.info(
+                    "Questions [%s]:\n%s",
+                    label,
+                    "\n".join(f"  {i + 1}. {q}" for i, q in enumerate(result.questions)),
+                )
+
+                functional_scores = np.array([
+                    [a.P_entailment_binary for a in qa.answers]
+                    for qa in result.question_answers
+                ])
+                sim = sc.calculate_similarity(result.questions, functional_scores=functional_scores)
 
                 rec = {
                     "dataset": dataset_cfg["name"],
                     "model": model_name,
                     "n_sample": n_sample,
                     "n_questions": len(result.questions),
-                    **q_sim,
-                    "functional": func_sim,
+                    "lexical": round(sim.lexical.mean, 4) if sim.lexical else "",
+                    "semantic": round(sim.semantic.mean, 4) if sim.semantic else "",
+                    "logical": round(sim.logical.mean, 4) if sim.logical else "",
+                    "functional": round(sim.functional.mean, 4) if sim.functional else "",
                 }
                 results.append(rec)
                 _row(rec)
 
-    # Save to CSV
+                logger.info(
+                    "Similarity [%s]: lexical=%.4f±%.4f  semantic=%.4f±%.4f  "
+                    "logical=%.4f±%.4f  functional=%.4f±%.4f",
+                    label,
+                    sim.lexical.mean, sim.lexical.std,
+                    sim.semantic.mean, sim.semantic.std,
+                    sim.logical.mean, sim.logical.std,
+                    sim.functional.mean, sim.functional.std,
+                )
+
     with open(OUTPUT_CSV, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=COLS)
         writer.writeheader()
         writer.writerows(results)
 
-    print(f"\nResults saved to {OUTPUT_CSV}")
+    logger.info("Results saved to %s", OUTPUT_CSV)
     print("\nDone.")
 
 
