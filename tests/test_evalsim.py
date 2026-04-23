@@ -30,15 +30,31 @@ def test_pairwise_logical_similarity():
     assert similarities[0, 2] < 0.6
     assert similarities[1, 2] < 0.6
     
-def test_parwise_functional_similarity():
+def test_pairwise_functional_similarity():
     model = NLIWithChunkingAndPooling()
-    
-    premises = ["the cat is on the roof", "the dog is in the yard", "a canine is in the yard", "a feline is on the roof"]
-    hypotheses = ["the cat is on the roof", "the dog is in the yard", "the cat is in the yard"]
-    
+
+    # h0 is entailed by premises about cats on the roof (indices 0, 3).
+    # h1 is entailed by premises about dogs in the yard (indices 1, 2).
+    # h2 is not entailed by any premise (cat in the yard — wrong location).
+    premises = [
+        "the cat is on the roof",
+        "the dog is in the yard",
+        "a canine is in the yard",
+        "a feline is on the roof",
+    ]
+    hypotheses = [
+        "the cat is on the roof",   # h0
+        "the dog is in the yard",   # h1
+        "the cat is in the yard",   # h2 — constant (never entailed)
+    ]
+
     scores = all_entailment_scores(hypotheses, premises, model)
     similarities = pairwise_functional_similarity(scores)
-    
-    assert similarities[0, 1] < 0.5
+
+    # h0 and h1 produce perfectly anti-correlated binary patterns →
+    # NMI = 1 (knowing one perfectly predicts the other).
+    assert similarities[0, 1] > 0.5
+
+    # h2 produces a constant (all-zero) pattern → NMI = 0 with any other.
     assert similarities[0, 2] < 0.5
     assert similarities[1, 2] < 0.5

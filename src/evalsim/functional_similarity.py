@@ -1,36 +1,52 @@
+"""Functional similarity between hypotheses measured via NMI on NLI answers."""
+
+import numpy as np
+
 from askme.rtp.nli import NLIWithChunkingAndPooling
-from .commons import average_binary_jensen_shannon_similarity
-import numpy as np 
+
+from .commons import nmi_binary_similarity
 
 
 def all_entailment_scores(
-    hypotheses : list[str],
-    premises : list[str],
-    model : NLIWithChunkingAndPooling,
+    hypotheses: list[str],
+    premises: list[str],
+    model: NLIWithChunkingAndPooling,
 ) -> np.ndarray:
-    """Calculate the functional similarity between two lists of hypotheses, given a dataset of premises.
-    A high functional similarity means that the hypotheses evaluate the same to all premises."""
+    """Run NLI for every (hypothesis, premise) pair.
 
+    Returns an (n_hypotheses, n_premises) matrix of entailment scores.
+    """
     scores = []
     for h in hypotheses:
         results = model(premises, h)
-        these_scores = [r.entailment_score for r in results]
-        scores.append(these_scores)
-    scores = np.array(scores)
-    
-    return scores
+        scores.append([r.entailment_score for r in results])
+    return np.array(scores)
+
 
 def pairwise_functional_similarity(
-    scores : np.ndarray,
+    scores: np.ndarray,
+    threshold: float = 0.5,
 ) -> np.ndarray:
-    """Calculate the pairwise functional similarity given the scores given to each of them.
-    A high functional similarity means that the hypotheses evaluate the same to all premises."""
+    """Pairwise NMI between hypotheses based on their binary answer patterns.
 
-    n_hypotheses = scores.shape[0]
-    
-    similarities = np.zeros((n_hypotheses, n_hypotheses))
-    for i in range(n_hypotheses):
-        for j in range(i + 1, n_hypotheses):
-            similarities[i, j] = average_binary_jensen_shannon_similarity(scores[i], scores[j])
-            similarities[j, i] = similarities[i, j]  # Symmetric matrix
+    Two hypotheses are functionally similar (NMI close to 1) when knowing one
+    question's yes/no answer across the collection perfectly predicts the
+    other's — whether correlated or anti-correlated.
+
+    Args:
+        scores: (n_hypotheses, n_premises) entailment score matrix.
+        threshold: binarisation cutoff applied before computing NMI.
+
+    Returns:
+        Symmetric (n_hypotheses, n_hypotheses) NMI matrix with zeros on the
+        diagonal.
+    """
+    n = scores.shape[0]
+    similarities = np.zeros((n, n))
+    for i in range(n):
+        for j in range(i + 1, n):
+            similarities[i, j] = nmi_binary_similarity(
+                scores[i], scores[j], threshold
+            )
+            similarities[j, i] = similarities[i, j]
     return similarities
