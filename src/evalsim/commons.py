@@ -43,8 +43,8 @@ def nmi_binary_similarity(a, b, threshold: float = 0.5) -> float:
 
     hx = entropy(x)
     hy = entropy(y)
-    denom = (hx * hy) ** 0.5
-    if denom < 1e-12:
+    denom = (max(0.0, hx * hy)) ** 0.5
+    if np.linalg.norm(denom) < 1e-12:
         return 0.0
 
     hxy = entropy(x * 2 + y)  # joint distribution via unique int per pair
