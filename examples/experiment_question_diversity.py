@@ -76,8 +76,8 @@ def load_texts(hf_name: str, split: str, text_field: str, n_docs: int) -> list[s
 # ---------------------------------------------------------------------------
 
 COLS = ["dataset", "model", "n_sample", "n_questions",
-        "lexical", "semantic", "logical", "functional"]
-COL_W = [18, 16, 8, 11, 8, 9, 8, 11]
+        "lexical", "lex_k", "semantic", "sem_k", "logical", "log_k", "functional", "fun_k"]
+COL_W = [18, 16, 8, 11, 8, 6, 9, 6, 8, 6, 11, 6]
 
 
 def _header():
@@ -146,10 +146,10 @@ def run_experiment():
                         "model": model_name,
                         "n_sample": n_sample,
                         "n_questions": N_QUESTIONS,
-                        "lexical": "ERR",
-                        "semantic": "ERR",
-                        "logical": "ERR",
-                        "functional": "ERR",
+                        "lexical": "ERR", "lex_k": "",
+                        "semantic": "ERR", "sem_k": "",
+                        "logical": "ERR", "log_k": "",
+                        "functional": "ERR", "fun_k": "",
                     }
                     results.append(rec)
                     _row(rec)
@@ -173,21 +173,25 @@ def run_experiment():
                     "n_sample": n_sample,
                     "n_questions": len(result.questions),
                     "lexical": round(sim.lexical.mean, 4) if sim.lexical else "",
+                    "lex_k": sim.lexical.n_clusters if sim.lexical else "",
                     "semantic": round(sim.semantic.mean, 4) if sim.semantic else "",
+                    "sem_k": sim.semantic.n_clusters if sim.semantic else "",
                     "logical": round(sim.logical.mean, 4) if sim.logical else "",
+                    "log_k": sim.logical.n_clusters if sim.logical else "",
                     "functional": round(sim.functional.mean, 4) if sim.functional else "",
+                    "fun_k": sim.functional.n_clusters if sim.functional else "",
                 }
                 results.append(rec)
                 _row(rec)
 
                 logger.info(
-                    "Similarity [%s]: lexical=%.4f±%.4f  semantic=%.4f±%.4f  "
-                    "logical=%.4f±%.4f  functional=%.4f±%.4f",
+                    "Similarity [%s]: lexical=%.4f±%.4f(k=%d)  semantic=%.4f±%.4f(k=%d)  "
+                    "logical=%.4f±%.4f(k=%d)  functional=%.4f±%.4f(k=%d)",
                     label,
-                    sim.lexical.mean, sim.lexical.std,
-                    sim.semantic.mean, sim.semantic.std,
-                    sim.logical.mean, sim.logical.std,
-                    sim.functional.mean, sim.functional.std,
+                    sim.lexical.mean, sim.lexical.std, sim.lexical.n_clusters,
+                    sim.semantic.mean, sim.semantic.std, sim.semantic.n_clusters,
+                    sim.logical.mean, sim.logical.std, sim.logical.n_clusters,
+                    sim.functional.mean, sim.functional.std, sim.functional.n_clusters,
                 )
 
     with open(OUTPUT_CSV, "w", newline="") as f:

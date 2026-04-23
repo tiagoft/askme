@@ -12,6 +12,7 @@ from .logical_similarity import pairwise_logical_similarity
 class PooledResults(BaseModel):
     mean: float
     std: float
+    n_clusters: int | None = None
 
 
 class Similarity(BaseModel):
@@ -68,9 +69,14 @@ class SimilarityCalculator:
         self.max_ngram = max_ngram
 
     def _pool(self, matrix: np.ndarray) -> PooledResults:
+        from sklearn.cluster import HDBSCAN
         n = matrix.shape[0]
         values = matrix[np.triu_indices(n, k=1)]
-        return PooledResults(mean=float(np.mean(values)), std=float(np.std(values)))
+        distance = np.clip(1.0 - matrix, 0.0, 1.0)
+        np.fill_diagonal(distance, 0.0)
+        labels = HDBSCAN(metric="precomputed", min_cluster_size=2, min_samples=1).fit_predict(distance)
+        n_clusters = int(len(set(labels) - {-1}))
+        return PooledResults(mean=float(np.mean(values)), std=float(np.std(values)), n_clusters=n_clusters)
 
     def calculate_lexical_similarity(self, texts: list[str]) -> PooledResults:
         return self._pool(pairwise_jaccard_ngram_similarity(texts, self.max_ngram))
