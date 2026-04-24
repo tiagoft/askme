@@ -10,6 +10,7 @@ class DocumentQuestionAnswer(BaseModel):
     document_index: int
     is_entailed: bool
     entailment_score: float
+    neutral_score: float
     contradiction_score: float
     P_entailment_binary: float
 
@@ -33,7 +34,7 @@ class CollectionAnswerer:
     def __init__(self, config: NLIBatchingChukingConfig | None = None):
         if config is None:
             config = config_factory(NLIBatchingChukingConfig)
-        self.nli = NLIWithChunkingAndPooling(config=config)
+        self.nli = NLIWithChunkingAndPooling(config=config, disable_tqdm=True)
 
     def __call__(
         self,
@@ -60,6 +61,7 @@ class CollectionAnswerer:
                     document_index=i,
                     is_entailed=r.is_entailed,
                     entailment_score=r.entailment_score,
+                    neutral_score=r.neutral_score,
                     contradiction_score=r.contradiction_score,
                     P_entailment_binary=r.P_entailment_binary,
                 )

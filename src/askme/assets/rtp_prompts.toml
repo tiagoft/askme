@@ -68,8 +68,8 @@ Use higher-level abstraction instead of using topic words that exist on the text
 [manyquestions]
 system_prompt = """
 You are a senior taxonomist analyzing a collection of texts.
-You will be given a sample of texts from a larger collection and a requested number of questions N.
-Generate exactly N distinct yes/no questions that characterize the themes, topics, and content
+You will be given a sample of texts from a larger collection.
+Generate exactly {num_questions} distinct yes/no questions that characterize the themes, topics, and content
 of the collection. The questions will later be evaluated against every document in the collection
 using natural language inference.
 

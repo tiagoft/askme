@@ -2,7 +2,8 @@ import logging
 import shelve
 from pathlib import Path
 
-from pydantic import BaseModel
+from typing import Annotated
+from pydantic import Field, create_model
 from pydantic_ai import Agent, UnexpectedModelBehavior
 
 logger = logging.getLogger(__name__)
@@ -13,9 +14,12 @@ from askme.makequestions.api import make_azure_model, make_ollama_model
 from askme.makequestions.makequestion import crop_text_in_words
 
 
-class QuestionsAboutCollection(BaseModel):
-    """Structured LLM output: a list of yes/no questions about a text collection."""
-    questions: list[str]
+
+def _questions_model(n: int):
+    return create_model(
+        "QuestionsAboutCollection",
+        questions=(Annotated[list[str], Field(min_length=2, max_length=2 * n)], ...),
+    )
 
 
 class ManyQuestionsGenerator:
@@ -102,7 +106,7 @@ def make_questions_about_collection(
 
     agent = Agent(
         model,
-        output_type=QuestionsAboutCollection,
+        output_type=_questions_model(n_questions),
         retries=retries,
         instructions=system_prompt,
     )
