@@ -199,8 +199,9 @@ def export_feature_parquet(question_answers, labels, output_path, orig_idx: list
 # ---------------------------------------------------------------------------
 
 COLS = ["dataset", "model", "n_sample", "n_docs", "n_questions",
-        "lexical", "lex_k", "semantic", "sem_k", "logical", "log_k", "functional", "fun_k"]
-COL_W = [18, 16, 8, 8, 11, 8, 6, 9, 6, 8, 6, 11, 6]
+        "lexical", "lex_k", "semantic", "sem_k", "logical", "log_k",
+        "functional", "fun_k", "fun_random", "fun_k_random"]
+COL_W = [18, 16, 8, 8, 11, 8, 6, 9, 6, 8, 6, 11, 6, 11, 12]
 
 
 def _header():
@@ -332,6 +333,20 @@ def run_experiment():
                     ])
                     sim = sc.calculate_similarity(result.questions, functional_scores=functional_scores)
 
+                    # Random-questions null baseline: Dirichlet-random binary scores of
+                    # the same shape as the real NLI matrix.  Provides a reference for
+                    # what functional similarity looks like when questions carry no
+                    # structured information about the collection.
+                    rng = np.random.default_rng(42)
+                    n_q = len(result.questions)
+                    n_d = len(collection)
+                    # Binarise random Dirichlet entailment values at 0.5
+                    random_ent = rng.dirichlet([1, 1, 1], size=(n_q, n_d))[:, :, 0]
+                    random_binary = (random_ent >= 0.5).astype(float)
+                    sim_random = sc.calculate_similarity(
+                        result.questions, functional_scores=random_binary
+                    )
+
                     rec = {
                         "dataset": dataset_cfg["name"],
                         "model": model_name,
@@ -347,6 +362,9 @@ def run_experiment():
                         "log_k":      sim.logical.n_clusters          if sim.logical    else "",
                         "functional": round(sim.functional.mean, 4) if sim.functional else "",
                         "fun_k":      sim.functional.n_clusters       if sim.functional else "",
+                        # Random-questions null reference (same columns, random NLI scores)
+                        "fun_random":   round(sim_random.functional.mean, 4) if sim_random.functional else "",
+                        "fun_k_random": sim_random.functional.n_clusters      if sim_random.functional else "",
                     }
                     results.append(rec)
                     _row(rec)
