@@ -39,8 +39,15 @@ OUTPUT_CSV  = RESULTS_DIR / "experiment_classification.csv"
 
 # Must match the dataset configs used in experiment_question_diversity.py
 DATASETS = {
-    "ag_news":         {"hf_name": "ag_news",        "train_split": "train", "test_split": "test", "text_field": "text"},
-    "rotten_tomatoes": {"hf_name": "rotten_tomatoes", "train_split": "train", "test_split": "test", "text_field": "text"},
+    "ag_news":       {"hf_name": "ag_news",              "train_split": "train", "test_split": "test", "text_field": "text"},
+    "20_newsgroups": {"hf_name": "SetFit/20_newsgroups", "train_split": "train", "test_split": "test", "text_field": "text"},
+    "wikipedia":     {"hf_name": "json",                 "train_split": "train", "test_split": "test", "text_field": "text",
+                      "data_files": {"train": "/mnt/data3/nlp_datasets/wikipedia/train.metadata.jsonl",
+                                     "test":  "/mnt/data3/nlp_datasets/wikipedia/test.metadata.jsonl"}},
+    "bills":         {"hf_name": "json",                 "train_split": "train", "test_split": "test", "text_field": "summary",
+                      "data_files": {"train": "/mnt/data3/nlp_datasets/bills/train.metadata.jsonl",
+                                     "test":  "/mnt/data3/nlp_datasets/bills/test.metadata.jsonl"}},
+    "rotten_tomatoes": {"hf_name": "rotten_tomatoes",   "train_split": "train", "test_split": "test", "text_field": "text"},
 }
 
 RANDOM_SEED        = 42
@@ -79,19 +86,24 @@ def parse_filename(path: Path) -> tuple[str, str, int, int] | None:
 
 
 def load_feature_matrix(path: Path) -> tuple[np.ndarray, list[int], list[int]]:
-    """Return (X, labels, doc_indices)."""
+    """Return (X, labels, orig_indices) where orig_indices are original dataset row indices."""
     df = pd.read_parquet(path)
     labels      = df["label"].tolist()
-    doc_indices = df["doc_index"].tolist()
-    feature_cols = [c for c in df.columns if c not in ("label", "doc_index")]
+    # orig_idx was added to fix the shuffle→original index alignment bug.
+    # Fall back to doc_index for legacy parquets that predate this fix.
+    orig_indices = df["orig_idx"].tolist() if "orig_idx" in df.columns else df["doc_index"].tolist()
+    feature_cols = [c for c in df.columns if c not in ("label", "doc_index", "orig_idx")]
     X = df[feature_cols].to_numpy(dtype=float)
-    return X, labels, doc_indices
+    return X, labels, orig_indices
 
 
 def load_texts(dataset_name: str, split: str, indices: list[int]) -> list[str]:
-    """Load texts at specific indices from a HuggingFace dataset split."""
+    """Load texts at specific original dataset indices."""
     cfg = DATASETS[dataset_name]
-    ds  = load_dataset(cfg["hf_name"], split=split)
+    if "data_files" in cfg:
+        ds = load_dataset("json", data_files=[cfg["data_files"][split]], split="train")
+    else:
+        ds = load_dataset(cfg["hf_name"], split=split)
     return [ds[i][cfg["text_field"]] for i in indices]
 
 
